@@ -4,13 +4,26 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>3D Map Viewer - Vườn Ươm</title>
+    <meta name="description" content="Trải nghiệm khám phá không gian Vườn Ươm 3D với mô hình 3D thực tế và ảnh DOM chất lượng cao.">
 
+    <!-- DNS prefetch + preconnect for CDN domains (critical for first load) -->
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+    <link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
+    <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin>
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="dns-prefetch" href="https://maps.googleapis.com">
+
+    <!-- Preload largest assets so browser fetches in parallel while parsing HTML -->
+    <link rel="preload" href="./glb/model_49m.glb" as="fetch" crossorigin>
     <link rel="preload" href="./dom/dom.jpg" as="image">
+    <link rel="preload" href="./potree/potree/potree.js" as="script">
 
-    <!-- Potree CSS -->
+    <!-- Potree CSS (render-blocking, kept intentionally for layout stability) -->
     <link rel="stylesheet" href="./potree/potree/potree.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/potree/potree@1.8/libs/jquery-ui/jquery-ui.min.css">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/potree/potree@1.8/libs/spectrum/spectrum.css">    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/potree/potree@1.8/libs/spectrum/spectrum.css">
+    <!-- font-display=swap: text renders immediately in fallback font, Inter loads without blocking -->
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap">
 
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -71,10 +84,44 @@
         #barFill { height: 100%; width: 0%; background: #0ea5e9;
             border-radius: 2px; transition: width 0.3s; }
 
-        @media (max-width: 600px) {
+        /* ── Mobile: sidebar takes full width, hide overlapping UI when open ── */
+        @media (max-width: 768px) {
             #toolbar { gap: 4px; padding: 4px; border-radius: 12px; bottom: 16px; }
             .btn { padding: 6px 12px; font-size: 11px; border-radius: 8px; }
             .sep { display: none; }
+
+            /* Sidebar fills full screen width on mobile */
+            #potree_sidebar_container {
+                width: 100vw !important;
+            }
+
+            /* Toggle button sits on the right edge on mobile */
+            #sidebar-toggle-btn {
+                left: 100vw;
+                border-left: 1px solid rgba(14, 165, 233, 0.2);
+                border-right: none;
+                border-radius: 10px 0 0 10px;
+            }
+            #sidebar-toggle-btn svg {
+                transform: rotate(180deg);
+            }
+            #sidebar-toggle-btn.collapsed {
+                left: 0;
+                border-left: none;
+                border-right: 1px solid rgba(14, 165, 233, 0.2);
+                border-radius: 0 10px 10px 0;
+            }
+            #sidebar-toggle-btn.collapsed svg {
+                transform: rotate(0deg);
+            }
+
+            /* When sidebar is OPEN on mobile — hide overlapping UI */
+            body.sidebar-open-mobile #miniMapContainer,
+            body.sidebar-open-mobile #toolbar {
+                opacity: 0 !important;
+                pointer-events: none !important;
+                transition: opacity 0.25s ease;
+            }
         }
 
         /* ============================================================
@@ -84,8 +131,8 @@
         /* Container */
         #potree_sidebar_container {
             z-index: 5000 !important;
-            width: 320px !important; /* Slightly wider for elegant typography */
-            background: rgba(13, 20, 35, 0.92) !important; /* Premium deep slate-blue with blur */
+            width: 320px !important;
+            background: rgba(13, 20, 35, 0.92) !important;
             backdrop-filter: blur(24px) saturate(150%);
             -webkit-backdrop-filter: blur(24px) saturate(150%);
             border-right: 1px solid rgba(14, 165, 233, 0.12) !important;
@@ -94,6 +141,64 @@
             display: flex !important;
             flex-direction: column !important;
             overflow: hidden !important;
+            transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1) !important;
+            transform: translateX(0) !important;
+        }
+        #potree_sidebar_container.sidebar-collapsed {
+            transform: translateX(-100%) !important;
+        }
+
+        /* ── Sidebar Toggle Button ── */
+        #sidebar-toggle-btn {
+            position: fixed;
+            top: 50%;
+            left: 320px;
+            transform: translateY(-50%) translateX(0);
+            z-index: 5001;
+            width: 22px;
+            height: 64px;
+            background: rgba(13, 20, 35, 0.95);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(14, 165, 233, 0.2);
+            border-left: none;
+            border-radius: 0 10px 10px 0;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: left 0.35s cubic-bezier(0.4, 0, 0.2, 1),
+                        background 0.2s ease,
+                        border-color 0.2s ease;
+            box-shadow: 3px 0 12px rgba(0, 0, 0, 0.4);
+        }
+        #sidebar-toggle-btn:hover {
+            background: rgba(14, 165, 233, 0.15);
+            border-color: rgba(14, 165, 233, 0.5);
+            width: 26px;
+        }
+        #sidebar-toggle-btn.collapsed {
+            left: 0;
+        }
+        #sidebar-toggle-btn svg {
+            width: 12px;
+            height: 12px;
+            stroke: #94a3b8;
+            fill: none;
+            stroke-width: 2;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+            transition: transform 0.35s ease;
+        }
+        #sidebar-toggle-btn.collapsed svg {
+            transform: rotate(180deg);
+        }
+        #sidebar-toggle-btn:hover svg {
+            stroke: #0ea5e9;
+        }
+
+        /* Toolbar shifts when sidebar collapses */
+        #toolbar {
+            transition: margin-left 0.35s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
         /* Scrollbar */
@@ -553,11 +658,23 @@
         .pv-export-btn:active {
             transform: translateY(0) scale(0.96) !important;
         }
+
+        /* Hide the default Potree quick-buttons bar (hamburger removed) */
+        #potree_quick_buttons {
+            display: none !important;
+        }
     </style>
 </head>
 <body>
     <div id="potree_render_area"></div>
     <div id="potree_sidebar_container"></div>
+
+    <!-- Sidebar Toggle Button -->
+    <button id="sidebar-toggle-btn" title="Ẩn / Hiện sidebar" onclick="toggleSidebar()">
+        <svg viewBox="0 0 24 24">
+            <polyline points="15 18 9 12 15 6"></polyline>
+        </svg>
+    </button>
 
     <div id="loading">
         <div class="spinner"></div>
@@ -1478,6 +1595,51 @@
                 });
             }
         }, 100);
+    })();
+
+    /* ── Sidebar collapse / expand ── */
+    (function() {
+        var sidebarEl = document.getElementById('potree_sidebar_container');
+        var toggleBtn = document.getElementById('sidebar-toggle-btn');
+        var toolbarEl = document.getElementById('toolbar');
+        var sidebarWidth = 320;
+        var collapsed = false;
+
+        function isMobile() {
+            return window.innerWidth <= 768;
+        }
+
+        // On mobile: start with sidebar collapsed so 3D view is visible first
+        if (isMobile()) {
+            collapsed = true;
+            sidebarEl.classList.add('sidebar-collapsed');
+            toggleBtn.classList.add('collapsed');
+        } else {
+            // Desktop: sidebar open by default, add body class for state tracking
+            document.body.classList.add('sidebar-open-mobile'); // no-op on desktop (no matching CSS)
+        }
+
+        window.toggleSidebar = function() {
+            collapsed = !collapsed;
+            if (collapsed) {
+                sidebarEl.classList.add('sidebar-collapsed');
+                toggleBtn.classList.add('collapsed');
+                // Center toolbar over full viewport width (desktop only)
+                if (!isMobile()) {
+                    toolbarEl.style.marginLeft = (-sidebarWidth / 2) + 'px';
+                }
+                // Mobile: restore Google Map + toolbar
+                document.body.classList.remove('sidebar-open-mobile');
+            } else {
+                sidebarEl.classList.remove('sidebar-collapsed');
+                toggleBtn.classList.remove('collapsed');
+                if (!isMobile()) {
+                    toolbarEl.style.marginLeft = '0px';
+                }
+                // Mobile: hide Google Map + toolbar while sidebar is open
+                document.body.classList.add('sidebar-open-mobile');
+            }
+        };
     })();
     </script>
 </body>

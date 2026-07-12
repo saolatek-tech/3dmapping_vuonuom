@@ -89199,12 +89199,7 @@ ENDSEC
 				sidebarContainer.css('width', '300px');
 				sidebarContainer.css('height', '100%');
 
-				let imgMenuToggle = document.createElement('img');
-				imgMenuToggle.src = new URL(Potree.resourcePath + '/icons/menu_button.svg').href;
-				imgMenuToggle.onclick = this.toggleSidebar;
-				imgMenuToggle.classList.add('potree_menu_toggle');
-
-				let imgMapToggle = document.createElement('img');
+					let imgMapToggle = document.createElement('img');
 				imgMapToggle.src = new URL(Potree.resourcePath + '/icons/map_icon.png').href;
 				imgMapToggle.style.display = 'none';
 				imgMapToggle.onclick = e => { this.toggleMap(); };
@@ -89214,7 +89209,6 @@ ENDSEC
 
 				let elButtons = $("#potree_quick_buttons").get(0);
 
-				elButtons.append(imgMenuToggle);
 				elButtons.append(imgMapToggle);
 
 
