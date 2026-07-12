@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <circle cx="12" cy="12" r="10" />
+  <ellipse cx="12" cy="12" rx="10" ry="3.5" stroke-dasharray="2,2" />
+  <ellipse cx="12" cy="12" rx="3.5" ry="10" stroke-dasharray="2,2" />
+  <text x="7" y="15" font-size="7" font-family="system-ui, -apple-system, sans-serif" font-weight="bold" fill="currentColor" stroke="none">3D</text>
+</svg>

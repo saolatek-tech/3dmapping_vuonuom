@@ -1,0 +1,26 @@
+{
+  "source": "DOM_2026-06-26-155514_tdom.tif",
+  "originalWidth": 8163,
+  "originalHeight": 8089,
+  "webWidth": 8163,
+  "webHeight": 8089,
+  "pixelSizeM": 0.017583,
+  "extentSRS": {
+    "xmin": 615901.041,
+    "ymax": 1199119.884,
+    "xmax": 616044.573,
+    "ymin": 1198977.662
+  },
+  "sizeMeters": {
+    "x": 143.532,
+    "y": 142.222
+  },
+  "tileSize": 512,
+  "levels": 1,
+  "projection": "Transverse_Mercator",
+  "centralMeridian": 105.75,
+  "srsOrigin": {
+    "x": 615982.0,
+    "y": 1199028.0
+  }
+}

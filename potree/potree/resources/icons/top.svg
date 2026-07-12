@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M12 2L3 7v10l9 5 9-5V7l-9-5z" stroke-opacity="0.4" />
+  <line x1="12" y1="22" x2="12" y2="12" stroke-opacity="0.4" />
+  <line x1="12" y1="12" x2="3" y2="7" stroke-opacity="0.4" />
+  <line x1="12" y1="12" x2="21" y2="7" stroke-opacity="0.4" />
+  <text x="12" y="15.5" font-size="10" font-family="system-ui, -apple-system, sans-serif" font-weight="900" text-anchor="middle" fill="currentColor" stroke="none">T</text>
+</svg>

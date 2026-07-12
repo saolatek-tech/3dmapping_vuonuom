@@ -1,0 +1,22 @@
+# Raw datasets and heavy GIS data (not used in web viewer)
+pointcloud/
+final/
+Vuon_Uom_26062026/
+.dom_clipped.tif
+.fixed_boundary.dbf
+.fixed_boundary.shp
+.fixed_boundary.shx
+.pipeline.json
+
+# Local development scripts
+build.py
+
+# Local IDE/Agent configurations
+.claude/
+.gemini/
+.vscode/
+node_modules/
+dist/
+
+# Unused large model exceeding GitHub limit
+glb/model.glb

@@ -1,0 +1,196 @@
+
+<div id="sidebar_root" class="">
+	<div id="sidebar_header">
+		<span id="potree_branding" class="potree_sidebar_brand">
+			<span class="pv-brand-logo">
+				<img src="./dom/saolatek_logo.png" alt="SAOLATEK Logo" style="height: 28px; width: auto; display: block; object-fit: contain;">
+			</span>
+			<span style="flex-grow: 1"></span>
+			<span id="potree_version_number" class="pv-version"></span>
+		</span>	</div>
+
+	<div class="pv-menu-wrapper">
+	<div id="potree_menu" class="accordion">
+
+		<!-- ─── APPEARANCE ─────────────────────── -->
+		<h3 id="menu_appearance">
+			<span class="pv-section-icon">🎨</span>
+			<span data-i18n="tb.rendering_opt"></span>
+		</h3>
+		<div>
+			<ul class="pv-menu-list">
+				<li class="pv-row">
+					<span data-i18n="appearance.nb_max_pts"></span>
+					<span id="lblPointBudget" class="pv-val"></span>
+					<div id="sldPointBudget"></div>
+				</li>
+				<li class="pv-row">
+					<span data-i18n="appearance.field_view"></span>
+					<span id="lblFOV" class="pv-val"></span>
+					<div id="sldFOV"></div>
+				</li>
+
+				<div class="pv-divider"><span>Eye-Dome Lighting</span></div>
+
+				<li class="pv-row"><label><input type="checkbox" id="chkEDLEnabled"/>
+					<span data-i18n="appearance.edl_enable"></span></label></li>
+				<li class="pv-row">
+					<span data-i18n="appearance.edl_radius"></span>
+					<span id="lblEDLRadius" class="pv-val"></span>
+					<div id="sldEDLRadius"></div>
+				</li>
+				<li class="pv-row">
+					<span data-i18n="appearance.edl_strength"></span>
+					<span id="lblEDLStrength" class="pv-val"></span>
+					<div id="sldEDLStrength"></div>
+				</li>
+				<li class="pv-row">
+					<span data-i18n="appearance.edl_opacity"></span>
+					<span id="lblEDLOpacity" class="pv-val"></span>
+					<div id="sldEDLOpacity"></div>
+				</li>
+
+				<div class="pv-divider"><span data-i18n="appearance.background">Background</span></div>
+
+				<li>
+					<selectgroup id="background_options" data-i18n-title="appearance.background">
+						<option id="background_options_skybox" value="skybox" data-i18n="appearance.skybox">Skybox</option>
+						<option id="background_options_gradient" value="gradient" data-i18n="appearance.gradient">Gradient</option>
+						<option id="background_options_black" value="black" data-i18n="appearance.black">Black</option>
+						<option id="background_options_white" value="white" data-i18n="appearance.white">White</option>
+						<option id="background_options_none" value="null" data-i18n="appearance.none">None</option>
+					</selectgroup>
+				</li>
+
+				<div class="pv-divider"><span data-i18n="appearance.point_quality">Quality</span></div>
+
+				<li>
+					<selectgroup id="splat_quality_options" data-i18n-title="appearance.point_quality">
+						<option id="splat_quality_options_standard" value="standard" data-i18n="appearance.quality_standard">Standard</option>
+						<option id="splat_quality_options_hq" value="hq" data-i18n="appearance.quality_hq">High Quality</option>
+					</selectgroup>
+				</li>
+
+				<li class="pv-row">
+					<span data-i18n="appearance.min_node_size"></span>
+					<span id="lblMinNodeSize" class="pv-val"></span>
+					<div id="sldMinNodeSize"></div>
+				</li>
+				<li class="pv-row"><label><input id="show_bounding_box" type="checkbox"/>
+					<span data-i18n="appearance.box"></span></label></li>
+				<li class="pv-row"><label><input id="set_freeze" type="checkbox"/>
+					<span data-i18n="appearance.freeze"></span></label></li>
+			</ul>
+		</div>
+
+		<!-- ─── TOOLS ──────────────────────────── -->
+		<h3 id="menu_tools">
+			<span class="pv-section-icon">🔧</span>
+			<span data-i18n="tb.tools_opt"></span>
+		</h3>
+		<div class="pv-menu-list">
+
+			<div class="pv-divider"><span data-i18n="tb.measurments_opt">Measurement</span></div>
+			<li id="tools"></li>
+			<li>
+				<selectgroup id="measurement_options_show" data-i18n-title="measurements.show_hide_labels">
+					<option id="measurement_options_show_yes" value="SHOW" data-i18n="measurements.show">Show</option>
+					<option id="measurement_options_show_no" value="HIDE" data-i18n="measurements.hide">Hide</option>
+				</selectgroup>
+			</li>
+
+			<div class="pv-divider"><span data-i18n="tb.clipping_opt">Clipping</span></div>
+			<li id="clipping_tools"></li>
+			<li>
+				<selectgroup id="cliptask_options" data-i18n-title="appearance.clip_task">
+					<option id="cliptask_options_none" value="NONE" data-i18n="appearance.clip_task_none">None</option>
+					<option id="cliptask_options_highlight" value="HIGHLIGHT" data-i18n="appearance.clip_task_highlight">Highlight</option>
+					<option id="cliptask_options_show_inside" value="SHOW_INSIDE" data-i18n="appearance.clip_task_show_inside">Inside</option>
+					<option id="cliptask_options_show_outside" value="SHOW_OUTSIDE" data-i18n="appearance.clip_task_show_outside">Outside</option>
+				</selectgroup>
+			</li>
+			<li>
+				<selectgroup id="clipmethod_options" data-i18n-title="appearance.clip_method">
+					<option id="clipmethod_options_any" value="INSIDE_ANY" data-i18n="appearance.clip_method_any">Inside Any</option>
+					<option id="clipmethod_options_all" value="INSIDE_ALL" data-i18n="appearance.clip_method_all">Inside All</option>
+				</selectgroup>
+			</li>
+
+			<div class="pv-divider"><span data-i18n="tb.navigation_opt">Navigation</span></div>
+			<li id="navigation"></li>
+			<li class="pv-row">
+				<span data-i18n="appearance.move_speed"></span>
+				<span id="lblMoveSpeed" class="pv-val"></span>
+				<div id="sldMoveSpeed"></div>
+			</li>
+		</div>
+
+		<!-- ─── SCENE ──────────────────────────── -->
+		<h3 id="menu_scene">
+			<span class="pv-section-icon">🗺️</span>
+			<span data-i18n="tb.scene_opt"></span>
+		</h3>
+		<div class="pv-menu-list">
+			<div id="scene_export"></div>
+			<div class="pv-divider"><span data-i18n="tb.objects_opt">Objects</span></div>
+			<div id="scene_objects"></div>
+			<div class="pv-divider"><span data-i18n="tb.properties_opt">Properties</span></div>
+			<div id="scene_object_properties"></div>
+		</div>
+
+		<!-- ─── FILTERS ────────────────────────── -->
+		<h3 id="menu_filters">
+			<span class="pv-section-icon">🔍</span>
+			<span data-i18n="tb.filters_opt"></span>
+		</h3>
+		<div>
+			<div class="pv-divider"><span data-i18n="tb.classification_opt">Classification</span></div>
+			<ul id="classificationList" class="pv-menu-list"></ul>
+
+			<div class="pv-divider"><span data-i18n="tb.returns_opt">Returns</span></div>
+			<div id="return_filter_panel">
+				<ul class="pv-menu-list">
+					<li class="pv-row">
+						<span data-i18n="filters.return_number"></span>
+						<span id="lblReturnNumber" class="pv-val"></span>
+						<div id="sldReturnNumber"></div>
+					</li>
+					<li class="pv-row">
+						<span data-i18n="filters.number_of_returns"></span>
+						<span id="lblNumberOfReturns" class="pv-val"></span>
+						<div id="sldNumberOfReturns"></div>
+					</li>
+				</ul>
+			</div>
+
+			<div class="pv-divider"><span data-i18n="tb.point_source_id_opt">Point Source ID</span></div>
+			<div>
+				<ul class="pv-menu-list" id="pointsourceid_filter_panel"></ul>
+			</div>
+
+			<div class="pv-divider"><span data-i18n="tb.gps_time_opt">GPS Time</span></div>
+			<div id="gpstime_filter_panel">
+				<ul class="pv-menu-list">
+					<div id="gpstime_multilevel_range_container">
+						<li>
+							<span style="display:flex;align-items:center;gap:6px;">
+								<span>Time:</span>
+								<input id="txtGpsTime" type="text" style="flex:1;"/>
+								<input id="btnFindGpsTime" type="button" value="Find"/>
+							</span>
+						</li>
+					</div>
+				</ul>
+			</div>
+		</div>
+
+
+
+	</div>
+	</div>
+
+	<!-- Footer Language toggle -->
+	<div id="potree_languages" class="pv-lang-toggle">
+		<span class="pv-lang-label">🌐</span>
+	</div>
+</div>

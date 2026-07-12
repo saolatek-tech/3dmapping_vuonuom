@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M3 20h18" />
+  <path d="M3 14c4-6 6-6 10-2s4 4 8-6" />
+  <line x1="13" y1="12" x2="13" y2="20" stroke-dasharray="2,2" />
+  <text x="5" y="9" font-size="7" font-family="system-ui, -apple-system, sans-serif" font-weight="bold" fill="currentColor" stroke="none">Cut</text>
+</svg>

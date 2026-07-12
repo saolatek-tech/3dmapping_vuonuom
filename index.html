@@ -1,0 +1,1484 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Map Viewer - Vườn Ươm</title>
+
+    <link rel="preload" href="./dom/dom.jpg" as="image">
+
+    <!-- Potree CSS -->
+    <link rel="stylesheet" href="./potree/potree/potree.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/potree/potree@1.8/libs/jquery-ui/jquery-ui.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/potree/potree@1.8/libs/spectrum/spectrum.css">    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap">
+
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { background: #080c14; overflow: hidden; font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+
+        /* ============================================================
+           MAIN TOOLBAR & BUTTONS — Senior Level UI Redesign
+           ============================================================ */
+        #toolbar {
+            position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+            background: rgba(13, 20, 35, 0.8); backdrop-filter: blur(20px) saturate(180%);
+            -webkit-backdrop-filter: blur(20px) saturate(180%);
+            border: 1px solid rgba(14, 165, 233, 0.15);
+            border-radius: 18px; padding: 6px;
+            display: flex; gap: 6px; z-index: 10001; align-items: center;
+            box-shadow: 0 16px 40px rgba(0, 0, 0, 0.5), inset 0 1px 1px rgba(255, 255, 255, 0.1);
+            user-select: none;
+        }
+        .btn {
+            background: transparent; border: 1px solid transparent; color: #94a3b8;
+            padding: 8px 16px; border-radius: 12px; cursor: pointer;
+            font-family: inherit; font-size: 13px; font-weight: 500;
+            white-space: nowrap; transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+            letter-spacing: 0.1px; display: inline-flex; align-items: center; justify-content: center;
+        }
+        .btn:hover {
+            background: rgba(255, 255, 255, 0.05); color: #f1f5f9;
+            border-color: rgba(255, 255, 255, 0.04);
+        }
+        .btn:active {
+            transform: scale(0.96);
+        }
+        .btn.active {
+            background: linear-gradient(135deg, #0284c7, #0ea5e9) !important;
+            color: #ffffff !important;
+            border-color: rgba(14, 165, 233, 0.4) !important;
+            box-shadow: 0 4px 16px rgba(14, 165, 233, 0.35);
+        }
+        .sep {
+            width: 1px; height: 18px; background: rgba(255, 255, 255, 0.12);
+            margin: 0 6px; display: inline-block; user-select: none; pointer-events: none;
+        }
+
+        #loading {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: #080c14; display: flex; flex-direction: column;
+            align-items: center; justify-content: center; z-index: 100000;
+            transition: opacity 0.5s;
+        }
+        #loading.hidden { opacity: 0; pointer-events: none; }
+        .spinner { width: 40px; height: 40px; border: 3px solid rgba(255,255,255,0.15);
+            border-top: 3px solid #0ea5e9; border-radius: 50%;
+            animation: spin 0.8s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        #loadingText { color: #ccc; margin-top: 14px; font-size: 14px; }
+        #barTrack { width: 220px; height: 3px; background: rgba(255,255,255,0.08);
+            border-radius: 2px; margin-top: 12px; overflow: hidden; }
+        #barFill { height: 100%; width: 0%; background: #0ea5e9;
+            border-radius: 2px; transition: width 0.3s; }
+
+        @media (max-width: 600px) {
+            #toolbar { gap: 4px; padding: 4px; border-radius: 12px; bottom: 16px; }
+            .btn { padding: 6px 12px; font-size: 11px; border-radius: 8px; }
+            .sep { display: none; }
+        }
+
+        /* ============================================================
+           POTREE SIDEBAR — Senior Frontend Redesign
+           ============================================================ */
+
+        /* Container */
+        #potree_sidebar_container {
+            z-index: 5000 !important;
+            width: 320px !important; /* Slightly wider for elegant typography */
+            background: rgba(13, 20, 35, 0.92) !important; /* Premium deep slate-blue with blur */
+            backdrop-filter: blur(24px) saturate(150%);
+            -webkit-backdrop-filter: blur(24px) saturate(150%);
+            border-right: 1px solid rgba(14, 165, 233, 0.12) !important;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif !important;
+            box-shadow: 4px 0 24px rgba(0, 0, 0, 0.4);
+            display: flex !important;
+            flex-direction: column !important;
+            overflow: hidden !important;
+        }
+
+        /* Scrollbar */
+        #potree_menu::-webkit-scrollbar { width: 6px; }
+        #potree_menu::-webkit-scrollbar-track { background: transparent; }
+        #potree_menu::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.1); border-radius: 6px; }
+        #potree_menu::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.2); }
+
+        /* Root text */
+        #sidebar_root {
+            color: #a1a1aa !important;
+            font-size: 13px !important;
+            letter-spacing: -0.01em;
+            display: flex !important;
+            flex-direction: column !important;
+            height: 100% !important;
+            width: 100% !important;
+        }
+
+        .pv-menu-wrapper {
+            flex: 1 1 0% !important;
+            display: flex !important;
+            flex-direction: column !important;
+            min-height: 0 !important;
+            overflow: hidden !important;
+        }
+
+        #potree_menu {
+            flex: 1 1 0% !important;
+            overflow-y: auto !important;
+        }
+
+        /* ── Header ── */
+        #sidebar_header {
+            background: transparent !important;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            padding: 0 !important;
+        }
+        .potree_sidebar_brand {
+            padding: 16px 20px !important;
+            margin: 0 !important;
+            display: flex !important;
+            align-items: center;
+            gap: 12px;
+        }
+        .pv-brand-logo {
+            font-size: 15px;
+            font-weight: 600;
+            color: #fafafa; /* Zinc 50 */
+            letter-spacing: -0.02em;
+        }
+        .pv-version {
+            font-size: 11px !important;
+            color: #52525b !important; /* Zinc 600 */
+            font-weight: 400;
+        }
+
+        /* Language toggle (Footer) */
+        .pv-lang-toggle {
+            display: flex !important;
+            align-items: center;
+            gap: 4px;
+            padding: 12px 20px !important;
+            border-top: 1px solid rgba(14, 165, 233, 0.12);
+            background: rgba(10, 15, 28, 0.98) !important;
+            z-index: 10;
+        }
+        .pv-lang-label { font-size: 13px; color: #71717a; margin-right: 6px; }
+        .pv-lang-toggle a {
+            padding: 4px 10px !important;
+            border-radius: 6px;
+            font-size: 12px !important;
+            font-weight: 500;
+            color: #71717a !important;
+            background: transparent;
+            border: 1px solid transparent;
+            cursor: pointer;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            text-decoration: none !important;
+        }
+        .pv-lang-toggle a:hover {
+            color: #e4e4e7 !important;
+            background: rgba(255, 255, 255, 0.05);
+        }
+        .pv-lang-toggle a.lang-active {
+            background: rgba(14, 165, 233, 0.2) !important;
+            color: #fafafa !important;
+            border-color: rgba(14, 165, 233, 0.3) !important;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+        }
+
+        /* ── Accordion headers ── */
+        #potree_menu.accordion h3 {
+            background: transparent !important;
+            border: none !important;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.04) !important;
+            color: #d4d4d8 !important; /* Zinc 300 */
+            font-size: 12px !important;
+            font-weight: 500 !important;
+            letter-spacing: 0.04em !important;
+            text-transform: uppercase;
+            padding: 14px 20px !important;
+            margin: 0 !important;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            transition: all 0.2s ease;
+        }
+        #potree_menu.accordion h3:hover {
+            background: rgba(255, 255, 255, 0.02) !important;
+            color: #fafafa !important;
+        }
+        #potree_menu.accordion h3.ui-state-active {
+            background: rgba(255, 255, 255, 0.03) !important;
+            color: #fafafa !important;
+            border-left: 3px solid #0ea5e9 !important; /* Elegant blue accent */
+        }
+        .pv-section-icon { font-size: 14px; opacity: 0.8; }
+
+        /* ── Menu content panels ── */
+        #potree_menu.accordion > div,
+        #potree_menu.accordion .pv-menu-list {
+            background: transparent !important;
+            padding: 12px 0 !important;
+        }
+
+        /* ── Dividers ── */
+        .pv-divider, .divider {
+            padding: 12px 20px 4px !important;
+            font-size: 11px !important;
+            font-weight: 500 !important;
+            color: #71717a !important;
+            border-top: 1px solid rgba(255, 255, 255, 0.06) !important;
+            margin-top: 8px !important;
+        }
+        .pv-divider:first-child, .divider:first-child {
+            border-top: none !important; margin-top: 0 !important; padding-top: 4px !important;
+        }
+
+        /* ── List rows ── */
+        .pv-menu-list li, ul.pv-menu-list li {
+            padding: 6px 20px !important;
+            color: #a1a1aa !important;
+            line-height: 1.5;
+            list-style: none !important;
+            font-size: 13px !important;
+        }
+        .pv-menu-list li label {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
+            color: #d4d4d8;
+            transition: color 0.2s;
+        }
+        .pv-menu-list li label:hover { color: #fafafa; }
+        
+        .pv-val {
+            float: right;
+            color: #fafafa;
+            font-weight: 500;
+            font-size: 12px;
+            background: rgba(255, 255, 255, 0.06);
+            padding: 2px 6px;
+            border-radius: 4px;
+        }
+
+        /* ── jQuery UI sliders ── */
+        .ui-slider {
+            margin: 10px 20px 8px !important;
+            height: 4px !important;
+            border-radius: 2px !important;
+            background: linear-gradient(to right, #0ea5e9 0%, #0ea5e9 var(--slider-percent, 0%), rgba(255, 255, 255, 0.1) var(--slider-percent, 0%), rgba(255, 255, 255, 0.1) 100%) !important;
+            border: none !important;
+        }
+        .ui-slider .ui-slider-handle {
+            width: 12px !important;
+            height: 12px !important;
+            top: -4px !important;
+            border-radius: 50% !important;
+            background: #fafafa !important;
+            border: 1px solid #d4d4d8 !important;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.3) !important;
+            cursor: grab !important;
+            transition: transform 0.1s;
+        }
+        .ui-slider .ui-slider-handle:active {
+            transform: scale(0.9);
+            cursor: grabbing !important;
+        }
+        .ui-slider .ui-slider-range {
+            background: #0ea5e9 !important;
+            border-radius: 2px !important;
+        }
+
+        /* ── Checkboxes ── */
+        #sidebar_root input[type="checkbox"] {
+            accent-color: #0ea5e9;
+            width: 14px; height: 14px;
+            cursor: pointer;
+        }
+
+        /* ── Selectgroup (Segmented Control style) ── */
+        #sidebar_root selectgroup {
+            display: block !important;
+            margin: 8px 0 16px !important; /* align with section header and fill horizontal space */
+            background: rgba(8, 12, 20, 0.5) !important; /* unified capsule dark bg */
+            border-radius: 8px !important;
+            border: 1px solid rgba(255, 255, 255, 0.06) !important;
+            padding: 3px !important;
+            box-sizing: border-box !important;
+            width: 100% !important; /* stretch to fill parent container */
+            overflow: hidden !important;
+        }
+        #sidebar_root selectgroup fieldset {
+            border: none !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            width: 100% !important;
+            display: block !important;
+        }
+        #sidebar_root selectgroup fieldset legend {
+            display: none !important; /* Hide redundant inner title */
+        }
+        #sidebar_root selectgroup fieldset > span {
+            display: flex !important;
+            width: 100% !important;
+            gap: 2px !important;
+        }
+
+        /* ── Remove default wrapper styling ── */
+        #sidebar_root selectgroup > span {
+            flex: 1 1 0px !important;
+            min-width: 0 !important; /* allow shrinking */
+            display: flex !important;
+            margin: 0 !important; padding: 0 !important;
+            border: none !important; background: transparent !important;
+        }
+
+        /* ── Inactive button (Segments) ── */
+        #sidebar_root selectgroup label.ui-button,
+        #sidebar_root selectgroup option {
+            flex: 1 1 0px !important; /* forces equal width */
+            min-width: 0 !important; /* allow shrinking */
+            text-align: center !important;
+            padding: 6px 2px !important; /* slightly smaller padding to prevent overflow */
+            border-radius: 6px !important;
+            font-size: 11px !important;
+            font-weight: 500 !important;
+            cursor: pointer !important;
+            border: 1px solid transparent !important;
+            background: transparent !important; /* override jQuery UI grey */
+            color: #94a3b8 !important;
+            transition: all 0.15s ease !important;
+            user-select: none !important;
+            white-space: nowrap !important;
+            overflow: hidden !important;
+            text-overflow: ellipsis !important;
+            margin: 0 !important;
+            box-shadow: none !important;
+            display: block !important; /* override jQuery UI display */
+            width: 100% !important; /* fill the wrapper span */
+        }
+        #sidebar_root selectgroup label.ui-button:hover,
+        #sidebar_root selectgroup option:hover {
+            color: #ffffff !important;
+            background: rgba(255, 255, 255, 0.05) !important;
+        }
+
+        /* ── ACTIVE button (Segment) ── */
+        #sidebar_root selectgroup label.ui-button.ui-state-active,
+        #sidebar_root selectgroup option.active,
+        #sidebar_root selectgroup option:checked {
+            background: rgba(255, 255, 255, 0.08) !important;
+            color: #ffffff !important;
+            border: 1px solid rgba(14, 165, 233, 0.3) !important;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2), 0 0 6px rgba(14, 165, 233, 0.15) !important;
+        }
+
+        /* ── Tool icon buttons ── */
+        #sidebar_root .potree_toolbar_icon,
+        #sidebar_root img.potree_toolbar_icon {
+            filter: brightness(0.7) !important;
+            border-radius: 6px !important;
+            transition: all 0.2s ease;
+            padding: 4px !important;
+        }
+        #sidebar_root .potree_toolbar_icon:hover {
+            filter: brightness(1.2) !important;
+            background: rgba(255, 255, 255, 0.08) !important;
+        }
+
+        /* ── Text inputs / buttons in sidebar ── */
+        #sidebar_root input[type="text"] {
+            background: rgba(0, 0, 0, 0.2) !important;
+            border: 1px solid rgba(255, 255, 255, 0.1) !important;
+            border-radius: 6px !important;
+            color: #fafafa !important;
+            padding: 6px 12px !important;
+            font-size: 12px !important;
+            font-family: inherit !important;
+            outline: none !important;
+            transition: all 0.2s ease !important;
+            width: 100%;
+        }
+        #sidebar_root input[type="text"]:focus {
+            border-color: #0ea5e9 !important;
+            box-shadow: 0 0 0 1px #0ea5e9 !important; /* Sharp focus ring */
+        }
+        #sidebar_root input[type="button"] {
+            background: rgba(255, 255, 255, 0.08) !important;
+            border: 1px solid rgba(255, 255, 255, 0.05) !important;
+            border-radius: 6px !important;
+            color: #e4e4e7 !important;
+            padding: 6px 14px !important;
+            font-size: 12px !important;
+            font-weight: 500 !important;
+            font-family: inherit !important;
+            cursor: pointer !important;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+        }
+        #sidebar_root input[type="button"]:hover {
+            background: rgba(255, 255, 255, 0.15) !important;
+            color: #fafafa !important;
+        }
+        #sidebar_root input[type="button"]:active {
+            transform: scale(0.97) !important;
+        }
+
+        /* ── Links ── */
+        #sidebar_root a { color: #0ea5e9 !important; transition: color 0.2s; }
+        #sidebar_root a:hover { color: #38bdf8 !important; text-decoration: none !important; }
+
+        /* Interactive Google Map Panel */
+        #miniMapContainer {
+            position: fixed; top: 20px; right: 20px;
+            width: 320px; height: 260px;
+            background: rgba(13, 20, 35, 0.85); backdrop-filter: blur(20px) saturate(180%);
+            -webkit-backdrop-filter: blur(20px) saturate(180%);
+            border: 1px solid rgba(14, 165, 233, 0.15);
+            border-radius: 16px; z-index: 10002; overflow: hidden;
+            box-shadow: 0 16px 40px rgba(0, 0, 0, 0.4), inset 0 1px 1px rgba(255, 255, 255, 0.08);
+            display: flex; flex-direction: column;
+            transition: all 0.45s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        #miniMapContainer.collapsed {
+            height: 42px; width: 170px;
+        }
+        /* ~1/4 screen = 45vw x 45vh */
+        #miniMapContainer.expanded {
+            width: 45vw; height: 45vh;
+            top: 50%; right: 20px;
+            transform: translateY(-50%);
+            border-color: rgba(14, 165, 233, 0.4);
+            box-shadow: 0 24px 64px rgba(0, 0, 0, 0.6), 0 0 20px rgba(14, 165, 233, 0.25);
+        }
+        #miniMapHeader {
+            padding: 10px 14px; display: flex; justify-content: space-between;
+            align-items: center; border-bottom: 1px solid rgba(255,255,255,0.06);
+            cursor: pointer; user-select: none; flex-shrink: 0;
+            background: rgba(255,255,255,0.01);
+        }
+        #miniMapHeader span { color: #f1f5f9; font-size: 13px; font-weight: 600; letter-spacing: 0.2px; white-space: nowrap; }
+        #toggleMiniMapBtn {
+            background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.08);
+            color: #94a3b8; font-size: 10px; cursor: pointer; padding: 4px 8px;
+            border-radius: 8px; transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+            line-height: 1; font-weight: 600; font-family: inherit;
+        }
+        #miniMapContainer:hover #toggleMiniMapBtn {
+            border-color: rgba(255, 255, 255, 0.15);
+            color: #e2e8f0;
+        }
+        #toggleMiniMapBtn:hover {
+            background: rgba(255, 255, 255, 0.12) !important;
+            border-color: rgba(255, 255, 255, 0.25) !important;
+            color: #ffffff !important;
+            transform: translateY(-1px);
+        }
+        #toggleMiniMapBtn:active {
+            transform: translateY(0) scale(0.95);
+        }
+        #miniMapBody { flex: 1; width: 100%; min-height: 0; background: #000; position: relative; }
+        /* Transparent overlay — intercepts scroll events for no-ctrl zoom */
+        #mapScrollCatcher {
+            position: absolute; inset: 0; z-index: 1; background: transparent;
+            cursor: crosshair;
+        }
+        /* Zinc-dark theme styling for measurement toolbar icons */
+        img.button-icon {
+            opacity: 0.8;
+            transition: all 0.2s ease-in-out;
+            cursor: pointer;
+        }
+        img.button-icon:hover {
+            opacity: 1.0;
+            transform: scale(1.1);
+        }
+
+        /* Color-coded categories for high-end CAD/GIS styling */
+        /* 1. Blue-Cyan: Navigation & View Presets (#0ea5e9 -> hover #38bdf8) */
+        img.button-icon.icon-blue {
+            filter: invert(51%) sepia(91%) saturate(1915%) hue-rotate(170deg) brightness(96%) contrast(97%);
+        }
+        img.button-icon.icon-blue:hover {
+            filter: invert(72%) sepia(85%) saturate(1633%) hue-rotate(174deg) brightness(101%) contrast(99%);
+        }
+
+        /* 2. Emerald Green: Measurement Tools (#10b981 -> hover #34d399) */
+        img.button-icon.icon-green {
+            filter: invert(58%) sepia(74%) saturate(544%) hue-rotate(113deg) brightness(96%) contrast(91%);
+        }
+        img.button-icon.icon-green:hover {
+            filter: invert(72%) sepia(61%) saturate(500%) hue-rotate(114deg) brightness(98%) contrast(93%);
+        }
+
+        /* 3. Orange: Clipping Tools (#f97316 -> hover #fb923c) */
+        img.button-icon.icon-orange {
+            filter: invert(59%) sepia(93%) saturate(1435%) hue-rotate(345deg) brightness(101%) contrast(97%);
+        }
+        img.button-icon.icon-orange:hover {
+            filter: invert(73%) sepia(51%) saturate(1820%) hue-rotate(345deg) brightness(101%) contrast(98%);
+        }
+
+        /* 4. Crimson Red: Delete / Clear Tools (#ef4444 -> hover #f87171) */
+        img.button-icon.icon-red {
+            filter: invert(35%) sepia(95%) saturate(2311%) hue-rotate(340deg) brightness(97%) contrast(94%);
+        }
+        img.button-icon.icon-red:hover {
+            filter: invert(60%) sepia(82%) saturate(2200%) hue-rotate(340deg) brightness(101%) contrast(98%);
+        }
+        
+        /* Styled Export buttons matching design system typography and colors */
+        .pv-export-btn {
+            display: inline-block !important;
+            background: rgba(255, 255, 255, 0.05) !important;
+            border: 1px solid rgba(255, 255, 255, 0.08) !important;
+            border-radius: 6px !important;
+            color: #d4d4d8 !important;
+            padding: 4px 10px !important;
+            font-size: 11px !important;
+            font-weight: 500 !important;
+            font-family: 'Inter', sans-serif !important;
+            text-decoration: none !important;
+            margin-right: 6px !important;
+            margin-top: 6px !important;
+            transition: all 0.2s ease !important;
+            cursor: pointer !important;
+        }
+        .pv-export-btn:hover {
+            background: rgba(14, 165, 233, 0.15) !important;
+            border-color: #0ea5e9 !important;
+            color: #ffffff !important;
+            transform: translateY(-1px) !important;
+        }
+        .pv-export-btn:active {
+            transform: translateY(0) scale(0.96) !important;
+        }
+    </style>
+</head>
+<body>
+    <div id="potree_render_area"></div>
+    <div id="potree_sidebar_container"></div>
+
+    <div id="loading">
+        <div class="spinner"></div>
+        <div id="loadingText">Đang tải dữ liệu...</div>
+        <div id="barTrack"><div id="barFill"></div></div>
+    </div>
+
+    <div id="toolbar">
+        <button class="btn active layer-btn" data-layer="both" data-i18n="tb.both" onclick="switchLayer('both')">Cả hai</button>
+        <button class="btn layer-btn" data-layer="model" data-i18n="tb.model" onclick="switchLayer('model')">3D Model</button>
+        <button class="btn layer-btn" data-layer="dom" data-i18n="tb.dom" onclick="switchLayer('dom')">Ảnh DOM</button>
+        <span class="sep">|</span>
+        <button class="btn" data-i18n="tb.default" onclick="resetView()">Mặc định</button>
+        <button class="btn" data-i18n="tb.topdown" onclick="viewTop()">Trên xuống</button>
+    </div>
+
+    <!-- Admin calibration panel — hidden by default, toggled by F1 -->
+    <div id="adminPanel" style="
+        display:none; position:fixed; top:60px; left:50%; transform:translateX(-50%);
+        background:rgba(10,20,35,0.93); border:2px solid rgba(255,200,0,0.6);
+        border-radius:12px; padding:12px 20px; z-index:9999; color:#ffd700;
+        font:13px/1.6 'Inter',monospace; box-shadow:0 4px 24px rgba(0,0,0,0.6);
+        min-width:340px; text-align:center; pointer-events:none; transition:border-color 0.3s;">
+        <div style="font-size:15px;font-weight:700;margin-bottom:6px;letter-spacing:1px;">
+            🔧 CHẾ ĐỘ ADMIN &nbsp;<span style="font-size:11px;opacity:0.7;">(F1 để thoát)</span>
+        </div>
+        <table style="width:100%;border-collapse:collapse;font-size:12px;text-align:left;">
+            <tr><td style="color:#aef;padding:2px 8px;"><b>↑↓←→ / I J K L</b></td><td style="color:#ddd;">Di chuyển Model 3D</td></tr>
+            <tr><td style="color:#aef;padding:2px 8px;"><b>U / O</b></td><td style="color:#ddd;">Xoay Model (+/-)</td></tr>
+            <tr><td style="color:#afd;padding:2px 8px;"><b>W A S D</b></td><td style="color:#ddd;">Di chuyển Ảnh DOM</td></tr>
+            <tr><td style="color:#afd;padding:2px 8px;"><b>Q / E</b></td><td style="color:#ddd;">Xoay Ảnh DOM (+/-)</td></tr>
+        </table>
+        <div style="margin-top:8px;font-size:11px;color:#aaa;">💾 Tự động lưu sau 0.8s &bull; Viền xanh = đã lưu ✓</div>
+    </div>
+
+    <!-- Cửa sổ Google Maps tương tác thực tế -->
+    <div id="miniMapContainer" class="collapsed">
+        <div id="miniMapHeader" onclick="toggleMiniMap()">
+            <span>Google Map</span>
+            <button id="toggleMiniMapBtn" title="Thu gọn / Mở / Phóng to">MỞ ↗</button>
+        </div>
+        <div id="miniMapBody">
+            <!-- Transparent overlay to catch scroll events without Ctrl -->
+            <div id="mapScrollCatcher"></div>
+            <iframe
+                id="googleMapIframe"
+                src="https://maps.google.com/maps?q=10.840421,106.812692&z=17&t=k&output=embed"
+                width="100%"
+                height="100%"
+                style="border:0; display:block;"
+                allowfullscreen=""
+                loading="lazy">
+            </iframe>
+        </div>
+    </div>
+
+    <!-- Potree dependencies (order matters) -->
+    <script src="https://cdn.jsdelivr.net/gh/potree/potree@1.8/libs/jquery/jquery-3.1.1.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/potree/potree@1.8/libs/jquery-ui/jquery-ui.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/potree/potree@1.8/libs/three.js/build/three.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.124.0/examples/js/loaders/GLTFLoader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/meshoptimizer@0.16.0/meshopt_decoder.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/potree/potree@1.8/libs/other/BinaryHeap.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/potree/potree@1.8/libs/tween/tween.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/potree/potree@1.8/libs/d3/d3.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/potree/potree@1.8/libs/i18next/i18next.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/potree/potree@1.8/libs/jstree/jstree.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/potree/potree@1.8/libs/spectrum/spectrum.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/potree/potree@1.8/libs/proj4/proj4.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/potree/potree@develop/libs/copc/index.js"></script>
+    <script src="./potree/potree/potree.js"></script>
+
+    <script>
+    (function() {
+        // Define the project's coordinate system (VN-2000 TP.HCM local projection with datum shift parameters)
+        proj4.defs("EPSG:32648", "+proj=tmerc +lat_0=0 +lon_0=105.75 +k=0.9999 +x_0=500000 +y_0=0 +ellps=krass +towgs84=-191.9,-39.3,-111.45,0.0092854,0.0107561,-0.00484545,0.023 +units=m +no_defs");
+
+        // ============================================================
+        // STATE
+        // ============================================================
+        let viewer = null;
+        let currentLayer = 'both';
+        let modelGroup = null;
+        let domPlane = null;
+        let allLoaded = false;
+
+        // ── Georeferencing calibration (admin-set) ───────────────────────
+        // Factory defaults calibrated 2026-07-11. Saved overrides stored in localStorage.
+        const LS_KEY = 'vuonuom_calib_v1';
+        let CAL = (function() {
+            const defaults = {
+                modelX:    615996.5,
+                modelY:    1199042.0,
+                modelRotY: -0.05,
+                domOffX:   16.0,
+                domOffY:   14.5,
+                domRotZ:   0.0
+            };
+            try {
+                var saved = JSON.parse(localStorage.getItem(LS_KEY) || '{}');
+                return Object.assign({}, defaults, saved);
+            } catch(e) { return defaults; }
+        })();
+
+        const loadingEl = document.getElementById('loading');
+        const loadingText = document.getElementById('loadingText');
+        const barFill = document.getElementById('barFill');
+
+        const assetProgress = { dom: 0, model: 0 };
+        const ASSET_WEIGHTS = { dom: 50, model: 50 };
+
+        function updateProgress(key, pct) {
+            if (ASSET_WEIGHTS[key] === undefined) return;
+            assetProgress[key] = Math.min(pct, 100);
+            const total = Object.keys(ASSET_WEIGHTS).reduce((sum, k) => {
+                return sum + (assetProgress[k] / 100) * ASSET_WEIGHTS[k];
+            }, 0);
+            barFill.style.width = Math.round(total) + '%';
+        }
+
+        function checkAllLoaded() {
+            if (allLoaded) return;
+            const done = assetProgress.dom >= 100 && assetProgress.model >= 100;
+            if (done) {
+                allLoaded = true;
+                loadingText.textContent = 'Hoàn tất!';
+                barFill.style.width = '100%';
+                setTimeout(function() { 
+                    // Fly to unified default view on load
+                    resetView();
+                    switchLayer('both');
+
+                    loadingEl.classList.add('hidden'); 
+                }, 400);
+            }
+        }
+
+        // ============================================================
+        // MESH PICKING PATCH — Cho phép công cụ Potree pick trên mesh
+        // ============================================================
+        function installMeshPickingPatch() {
+            var original = Potree.Utils.getMousePointCloudIntersection;
+
+            Potree.Utils.getMousePointCloudIntersection = function(mouse, camera, viewer, pointclouds, params) {
+                // 1. Thử pick trên point cloud trước (gốc)
+                var pcResult = original.call(this, mouse, camera, viewer, pointclouds, params);
+                if (pcResult && pcResult.location) {
+                    return pcResult;
+                }
+
+                // 2. Fallback: raycast vào tất cả mesh trong scene
+                var renderer = viewer.renderer;
+                var nmouse = {
+                    x: (mouse.x / renderer.domElement.clientWidth) * 2 - 1,
+                    y: -(mouse.y / renderer.domElement.clientHeight) * 2 + 1
+                };
+
+                var raycaster = new THREE.Raycaster();
+                raycaster.setFromCamera(nmouse, camera);
+
+                // Gom tất cả mesh visible từ scene chính + modelGroup
+                var meshes = [];
+                viewer.scene.scene.traverse(function(child) {
+                    if (child.isMesh && child.visible !== false) {
+                        meshes.push(child);
+                    }
+                });
+                if (modelGroup && modelGroup.visible !== false) {
+                    modelGroup.traverse(function(child) {
+                        if (child.isMesh && child.visible !== false) {
+                            meshes.push(child);
+                        }
+                    });
+                }
+
+                if (meshes.length === 0) return null;
+
+                var intersects = raycaster.intersectObjects(meshes, false);
+                if (intersects.length > 0) {
+                    var hit = intersects[0];
+                    // Trả về object giả lập có đầy đủ thuộc tính như Potree point
+                    var fakePoint = {
+                        position: hit.point.clone(),
+                        color: [255, 255, 255],
+                        intensity: 0,
+                        classification: 0,
+                        returnNumber: 0,
+                        numberOfReturns: 0,
+                        pointSourceId: 0,
+                        gpsTime: 0,
+                        normal: hit.face ? hit.face.normal.clone() : new THREE.Vector3(0, 0, 1)
+                    };
+                    return {
+                        location: hit.point.clone(),
+                        distance: hit.distance,
+                        point: fakePoint,
+                        object: hit.object,
+                        isMeshPick: true
+                    };
+                }
+
+                return null;
+            };
+
+            console.log('[Patch] Mesh picking installed — measurement tools now work on DOM & Model');
+        }
+
+        // ============================================================
+        // INIT POTREE VIEWER
+        // ============================================================
+        async function init() {
+            loadingText.textContent = 'Đang khởi tạo...';
+
+            var renderArea = document.getElementById('potree_render_area');
+            viewer = new Potree.Viewer(renderArea);
+
+            await viewer.loadGUI();
+
+            viewer.setEDLEnabled(true);
+            viewer.setPointBudget(12_000_000); // 12 triệu điểm (đủ nét và không bị quá tải mạng)
+            viewer.setMinNodeSize(8);          // 8 (tải chi tiết tốt mà không tạo quá nhiều HTTP requests liên tục)
+            viewer.edlStrength = 0.8;
+            viewer.edlRadius = 1.3;
+            viewer.setLanguage('en');
+
+            // Cài patch mesh picking
+            installMeshPickingPatch();
+
+            // Patch fitToScreen to support 3D Model & DOM Plane when point clouds are empty
+            var originalFitToScreen = viewer.fitToScreen;
+            viewer.fitToScreen = function(factor = 1, animationDuration = 0) {
+                if (viewer.scene.pointclouds.length > 0) {
+                    return originalFitToScreen.call(this, factor, animationDuration);
+                }
+                
+                var box = new THREE.Box3();
+                var hasMesh = false;
+                
+                if (modelGroup && modelGroup.visible !== false) {
+                    box.expandByObject(modelGroup);
+                    hasMesh = true;
+                }
+                if (domPlane && domPlane.visible !== false) {
+                    box.expandByObject(domPlane);
+                    hasMesh = true;
+                }
+                
+                if (!hasMesh) {
+                    // Fallback default coordinates
+                    box.set(
+                        new THREE.Vector3(615900, 1198900, 0),
+                        new THREE.Vector3(616100, 1199100, 100)
+                    );
+                }
+                
+                let node = new THREE.Object3D();
+                node.boundingBox = box;
+                
+                this.zoomTo(node, factor, animationDuration);
+                this.controls.stop();
+            };
+
+            // Enable local clipping on the renderer
+            viewer.renderer.localClippingEnabled = true;
+
+            // Pre-allocate 6 planes for BoxVolume clipping
+            var activePlanes = [
+                new THREE.Plane(), new THREE.Plane(), new THREE.Plane(),
+                new THREE.Plane(), new THREE.Plane(), new THREE.Plane()
+            ];
+            var lastClipActive = false;
+
+            function updateBoxClippingPlanes(boxVolume) {
+                let matrix = boxVolume.matrixWorld;
+                let localPlanes = [
+                    { normal: new THREE.Vector3(1, 0, 0), point: new THREE.Vector3(-0.5, 0, 0) },  // Left
+                    { normal: new THREE.Vector3(-1, 0, 0), point: new THREE.Vector3(0.5, 0, 0) },  // Right
+                    { normal: new THREE.Vector3(0, 1, 0), point: new THREE.Vector3(0, -0.5, 0) },  // Bottom
+                    { normal: new THREE.Vector3(0, -1, 0), point: new THREE.Vector3(0, 0.5, 0) },  // Top
+                    { normal: new THREE.Vector3(0, 0, 1), point: new THREE.Vector3(0, 0, -0.5) },  // Back
+                    { normal: new THREE.Vector3(0, 0, -1), point: new THREE.Vector3(0, 0, 0.5) }   // Front
+                ];
+                localPlanes.forEach((lp, idx) => {
+                    let worldPoint = lp.point.clone().applyMatrix4(matrix);
+                    let worldNormal = lp.normal.clone().transformDirection(matrix).normalize();
+                    activePlanes[idx].setFromNormalAndCoplanarPoint(worldNormal, worldPoint);
+                });
+            }
+
+            // Sync clipping boxes to 3D Model and DOM Image
+            setInterval(function() {
+                if (!viewer || !viewer.scene) return;
+                
+                var clipBoxes = viewer.scene.clipBoxes;
+                var clipTask = viewer.clipTask; // 2 is SHOW_INSIDE
+                var clipActive = clipBoxes.length > 0 && (clipTask === 2 || clipTask === "SHOW_INSIDE");
+                
+                if (clipActive) {
+                    updateBoxClippingPlanes(clipBoxes[0]);
+                }
+                
+                var needShaderUpdate = (clipActive !== lastClipActive);
+                lastClipActive = clipActive;
+                
+                var targetPlanes = clipActive ? activePlanes : null;
+                
+                // Update 3D Model materials
+                if (modelGroup) {
+                    modelGroup.traverse(function(node) {
+                        if (node.isMesh && node.material) {
+                            var mats = Array.isArray(node.material) ? node.material : [node.material];
+                            mats.forEach(function(mat) {
+                                if (mat.clippingPlanes !== targetPlanes || needShaderUpdate) {
+                                    mat.clippingPlanes = targetPlanes;
+                                    mat.clipShadows = true;
+                                    mat.needsUpdate = true;
+                                }
+                            });
+                        }
+                    });
+                }
+                
+                // Update DOM Plane material
+                if (domPlane && domPlane.material) {
+                    if (domPlane.material.clippingPlanes !== targetPlanes || needShaderUpdate) {
+                        domPlane.material.clippingPlanes = targetPlanes;
+                        domPlane.material.needsUpdate = true;
+                    }
+                }
+            }, 100);
+
+            // Load tất cả layer
+            loadGoogleMapsTiles();
+            loadDOM();
+            loadModel();
+        }
+
+        // ============================================================
+        // LOAD DOM ORTHOPHOTO
+        // ============================================================
+        function loadDOM() {
+            updateProgress('dom', 5);
+            fetch('./dom/metadata.json')
+                .then(function(r) { return r.json(); })
+                .then(function(meta) {
+                    var domW = meta.sizeMeters.x;
+                    var domH = meta.sizeMeters.y;
+                    var tlX = meta.extentSRS.xmin;
+                    var tlY = meta.extentSRS.ymax;
+                    // DOM plane center from extent + saved offset
+                    var cx = tlX + domW / 2 + CAL.domOffX;
+                    var cy = tlY - domH / 2 + CAL.domOffY;
+
+                    new THREE.TextureLoader().load('./dom/dom.jpg',
+                        function(texture) {
+                            // Custom shader to discard black (nodata) pixels
+                            var domMat = new THREE.ShaderMaterial({
+                                clipping: true, // Enable clipping for custom shader
+                                uniforms: {
+                                    map: { value: texture },
+                                    blackThreshold: { value: 0.05 }  // discard pixels darker than 5%
+                                },
+                                vertexShader: `
+                                    varying vec2 vUv;
+                                    #include <clipping_planes_pars_vertex>
+                                    void main() {
+                                        vUv = uv;
+                                        #include <clipping_planes_vertex>
+                                        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+                                    }
+                                `,
+                                fragmentShader: `
+                                    uniform sampler2D map;
+                                    uniform float blackThreshold;
+                                    varying vec2 vUv;
+                                    #include <clipping_planes_pars_fragment>
+                                    void main() {
+                                        #include <clipping_planes_fragment>
+                                        vec4 color = texture2D(map, vUv);
+                                        float brightness = max(color.r, max(color.g, color.b));
+                                        if (brightness < blackThreshold) discard;
+                                        gl_FragColor = color;
+                                    }
+                                `,
+                                side: THREE.DoubleSide,
+                                depthWrite: false,
+                                transparent: false
+                            });
+
+                            // DOM on XY plane (same as point cloud: X=easting, Y=northing)
+                            domPlane = new THREE.Mesh(
+                                new THREE.PlaneGeometry(domW, domH),
+                                domMat
+                            );
+                            domPlane.position.set(cx, cy, 0.01);
+                            domPlane.rotation.z = CAL.domRotZ;
+                            domPlane.renderOrder = 0;
+                            domPlane.name = 'DOM_Plane';
+                            console.log('[DOM] center:', cx.toFixed(2), cy.toFixed(2), 'rot.z:', CAL.domRotZ.toFixed(4));
+
+                            viewer.scene.scene.add(domPlane);
+
+                            assetProgress.dom = 100;
+                            updateProgress('dom', 100);
+                            checkAllLoaded();
+                            console.log('[DOM] Ready — pickable via mesh raycast');
+                        },
+                        function() { updateProgress('dom', 30); },
+                        function() {
+                            console.warn('[DOM] Image not available');
+                            assetProgress.dom = 100;
+                            updateProgress('dom', 100);
+                            checkAllLoaded();
+                        }
+                    );
+                })
+                .catch(function() {
+                    assetProgress.dom = 100;
+                    updateProgress('dom', 100);
+                    checkAllLoaded();
+                });
+        }
+
+        // ============================================================
+        // LOAD GOOGLE MAPS TILES (3D Background)
+        // ============================================================
+        function loadGoogleMapsTiles() {
+            var cx = 615982;
+            var cy = 1199028;
+            var halfSize = 1200; // Mở rộng vùng hiển thị bản đồ ra 2.4km x 2.4km
+            
+            var zoom = 18;
+            var tiles = {};
+            
+            for (var x = cx - halfSize; x <= cx + halfSize; x += 100) {
+                for (var y = cy - halfSize; y <= cy + halfSize; y += 100) {
+                    var lonLat = proj4("EPSG:32648", "WGS84", [x, y]);
+                    var tx = Math.floor((lonLat[0] + 180) / 360 * Math.pow(2, zoom));
+                    var ty = Math.floor((1 - Math.log(Math.tan(lonLat[1] * Math.PI / 180) + 1 / Math.cos(lonLat[1] * Math.PI / 180)) / Math.PI) / 2 * Math.pow(2, zoom));
+                    tiles[tx + "_" + ty] = { tx: tx, ty: ty };
+                }
+            }
+            
+            Object.values(tiles).forEach(function(tile) {
+                var tx = tile.tx;
+                var ty = tile.ty;
+                
+                function tileToLonLat(x, y, z) {
+                    var n = Math.PI - 2 * Math.PI * y / Math.pow(2, z);
+                    var lon = x / Math.pow(2, z) * 360 - 180;
+                    var lat = 180 / Math.PI * Math.atan(0.5 * (Math.exp(n) - Math.exp(-n)));
+                    return { lon: lon, lat: lat };
+                }
+                
+                var nw = tileToLonLat(tx, ty, zoom);
+                var se = tileToLonLat(tx + 1, ty + 1, zoom);
+                
+                var nw_utm = proj4("WGS84", "EPSG:32648", [nw.lon, nw.lat]);
+                var se_utm = proj4("WGS84", "EPSG:32648", [se.lon, se.lat]);
+                
+                var w = Math.abs(se_utm[0] - nw_utm[0]);
+                var h = Math.abs(se_utm[1] - nw_utm[1]);
+                
+                // Fine-tuned offset to align Google Maps satellite imagery with VN-2000 georeference
+                var offsetX = 13.5; 
+                var offsetY = -3.5;
+                var rotBack = -0.04; // Rotate background map by -0.04 radians (~ -2.3 degrees)
+                
+                var tc_x = (nw_utm[0] + se_utm[0]) / 2 + offsetX;
+                var tc_y = (nw_utm[1] + se_utm[1]) / 2 + offsetY;
+                
+                // Rotate tile center around scene origin (cx, cy)
+                var dx = tc_x - cx;
+                var dy = tc_y - cy;
+                var rx = dx * Math.cos(rotBack) - dy * Math.sin(rotBack) + cx;
+                var ry = dx * Math.sin(rotBack) + dy * Math.cos(rotBack) + cy;
+                
+                var tileUrl = `https://mt1.google.com/vt/lyrs=s&x=${tx}&y=${ty}&z=${zoom}`;
+                
+                new THREE.TextureLoader().load(tileUrl, function(tex) {
+                    var plane = new THREE.Mesh(
+                        new THREE.PlaneGeometry(w, h),
+                        new THREE.MeshBasicMaterial({ map: tex, side: THREE.DoubleSide, depthWrite: false })
+                    );
+                    plane.position.set(rx, ry, -0.05); 
+                    plane.rotation.z = rotBack;
+                    plane.renderOrder = -1;
+                    plane.name = "GoogleMap_Tile";
+                    plane.visible = (currentLayer === 'both');
+                    viewer.scene.scene.add(plane);
+                });
+            });
+        }
+
+        // ============================================================
+        // LOAD 3D MODEL (uncompressed GLB — r124 không hỗ trợ meshopt)
+        // ============================================================
+        function loadModel() {
+            updateProgress('model', 5);
+            loadingText.textContent = 'Đang tải model 3D...';
+
+            var loader = new THREE.GLTFLoader();
+            loader.setMeshoptDecoder(MeshoptDecoder);
+            loader.load('./glb/model_49m.glb',
+                function(gltf) {
+                    modelGroup = gltf.scene;
+
+                    // GLB uses Y-up; Potree uses Z-up.
+                    // Apply +90° rotation around X to convert Y-up → Z-up
+                    modelGroup.rotation.x = Math.PI / 2;
+                    modelGroup.rotation.y = 1.05; // ~60 degrees georeference rotation
+                    // Position model — use saved calibration or defaults
+                    modelGroup.rotation.y = CAL.modelRotY;
+                    modelGroup.updateMatrixWorld(true);
+
+                    var box = new THREE.Box3().setFromObject(modelGroup);
+                    var size = box.getSize(new THREE.Vector3());
+
+                    modelGroup.position.set(CAL.modelX, CAL.modelY, 0.3);
+                    console.log('[Model] pos:', CAL.modelX.toFixed(2), CAL.modelY.toFixed(2), 'rot.y:', CAL.modelRotY.toFixed(4));
+
+                    modelGroup.traverse(function(child) {
+                        if (child.isMesh) {
+                            child.castShadow = true;
+                            child.receiveShadow = true;
+                            if (child.material) {
+                                var mats = Array.isArray(child.material) ? child.material : [child.material];
+                                mats.forEach(function(mat) {
+                                    mat.side = THREE.DoubleSide;
+                                    if (mat.color) mat.color.set(0xffffff);
+                                    if (mat.metalness !== undefined) mat.metalness = 0.0;
+                                    if (mat.roughness !== undefined) mat.roughness = 0.5;
+                                    mat.needsUpdate = true;
+                                });
+                            }
+                        }
+                    });
+
+                    viewer.scene.scene.add(modelGroup);
+
+                    // Strong lighting for model visibility
+                    var ambLight = new THREE.AmbientLight(0xffffff, 1.2);
+                    viewer.scene.scene.add(ambLight);
+                    var dirLight = new THREE.DirectionalLight(0xffffff, 1.0);
+                    dirLight.position.set(200, 400, 200);
+                    viewer.scene.scene.add(dirLight);
+                    var dirLight2 = new THREE.DirectionalLight(0xffffff, 0.4);
+                    dirLight2.position.set(-100, 50, -100);
+                    viewer.scene.scene.add(dirLight2);
+
+                    assetProgress.model = 100;
+                    updateProgress('model', 100);
+                    checkAllLoaded();
+                    console.log('[3D] Size:', size.x.toFixed(1), 'x', size.y.toFixed(1), 'x', size.z.toFixed(1), 'm');
+                },
+                function(p) {
+                    if (p.total) {
+                        var pct = Math.round((p.loaded / p.total) * 100);
+                        updateProgress('model', pct);
+                        loadingText.textContent = 'Đang tải model 3D... ' + pct + '%';
+                    }
+                },
+                function(err) {
+                    console.error('[3D] Load failed:', err);
+                    assetProgress.model = 100;
+                    updateProgress('model', 100);
+                    checkAllLoaded();
+                }
+            );
+        }
+
+        // ============================================================
+        // LAYER SWITCHING
+        // ============================================================
+        window.switchLayer = function(layer) {
+            currentLayer = layer;
+
+            document.querySelectorAll('.layer-btn').forEach(function(b) {
+                b.classList.toggle('active', b.dataset.layer === layer);
+            });
+
+            // Show selected layers
+            if (modelGroup) modelGroup.visible = (layer === 'model' || layer === 'both');
+            if (domPlane) domPlane.visible = (layer === 'dom' || layer === 'both');
+
+            // Hide Google Maps tiles in the 3D view when showing only model or only DOM plane
+            if (viewer && viewer.scene && viewer.scene.scene) {
+                viewer.scene.scene.traverse(function(child) {
+                    if (child.name === 'GoogleMap_Tile') {
+                        child.visible = (layer === 'both');
+                    }
+                });
+            }
+
+            // Adjust camera/orbit controls
+            if (viewer.orbitControls) {
+                viewer.orbitControls.enabled = true;
+                if (layer === 'dom') {
+                    // Force Orbit controls for flat panning
+                    viewer.setNavigationMode(Potree.NavigationMode.ORBIT);
+                    viewer.orbitControls.rotationSpeed = 0; // Disable rotation (enables left-click drag to pan in patched controls)
+                    
+                    // Switch to 2D Orthographic camera directly and update UI state
+                    viewer.setCameraMode(Potree.CameraMode.ORTHOGRAPHIC);
+                    var radioInput = $(`input[name=camera_projection_options][value=ORTHOGRAPHIC]`);
+                    if (radioInput.length > 0) {
+                        radioInput.prop("checked", true).trigger("change");
+                    }
+                    
+                    // Delay slightly to let camera swap and controls settle, then fly top-down
+                    setTimeout(function() {
+                        viewTop();
+                    }, 100);
+                } else {
+                    viewer.orbitControls.rotationSpeed = 5; // Restore normal rotation speed
+                    
+                    // Restore 3D Perspective camera directly and update UI state
+                    viewer.setCameraMode(Potree.CameraMode.PERSPECTIVE);
+                    var radioInput = $(`input[name=camera_projection_options][value=PERSPECTIVE]`);
+                    if (radioInput.length > 0) {
+                        radioInput.prop("checked", true).trigger("change");
+                    }
+                }
+            }
+        };
+
+
+        const SCENE_CENTER = new THREE.Vector3(615973, 1199049, 40);
+
+        window.resetView = function() {
+            var target = SCENE_CENTER.clone();
+            // Fly to a 45-degree angle overview
+            var pos = new THREE.Vector3(target.x + 130, target.y - 130, target.z + 100);
+            Potree.Utils.moveTo(viewer.scene, pos, target);
+        };
+
+        window.viewTop = function() {
+            var target = SCENE_CENTER.clone();
+            // Fly to top-down view looking down
+            var pos = new THREE.Vector3(target.x, target.y, target.z + 200);
+            Potree.Utils.moveTo(viewer.scene, pos, target);
+        };
+
+        // ============================================================
+        // KEYBOARD — public shortcuts + F1 hidden admin mode
+        // ============================================================
+        var adminMode = false;
+        var saveTimer = null;
+
+        function autoSave() {
+            // Compute DOM offsets back from absolute position
+            var domOffX = domPlane ? (domPlane.position.x - (615901.041 + 143.532 / 2)) : CAL.domOffX;
+            var domOffY = domPlane ? (domPlane.position.y - (1199119.884 - 142.222 / 2)) : CAL.domOffY;
+            var saved = {
+                modelX:    modelGroup ? modelGroup.position.x : CAL.modelX,
+                modelY:    modelGroup ? modelGroup.position.y : CAL.modelY,
+                modelRotY: modelGroup ? modelGroup.rotation.y : CAL.modelRotY,
+                domOffX:   domOffX,
+                domOffY:   domOffY,
+                domRotZ:   domPlane  ? domPlane.rotation.z  : CAL.domRotZ
+            };
+            localStorage.setItem(LS_KEY, JSON.stringify(saved));
+            Object.assign(CAL, saved);
+            // Flash the admin panel border green briefly
+            var panel = document.getElementById('adminPanel');
+            if (panel) { panel.style.borderColor = '#4ac882'; setTimeout(function(){ panel.style.borderColor = 'rgba(255,200,0,0.6)'; }, 600); }
+        }
+
+        function scheduleAutoSave() {
+            clearTimeout(saveTimer);
+            saveTimer = setTimeout(autoSave, 800); // save 0.8s after last key
+        }
+
+        function toggleAdminMode() {
+            adminMode = !adminMode;
+            var panel = document.getElementById('adminPanel');
+            if (panel) panel.style.display = adminMode ? 'block' : 'none';
+            if (adminMode) console.log('[Admin] Calibration mode ON — WASD/QE=DOM  ↑↓←→/UO=Model  F1=Exit');
+            else console.log('[Admin] Calibration mode OFF');
+        }
+
+        window.addEventListener('keydown', function(e) {
+            // F1 toggles admin mode (prevent browser help dialog)
+            if (e.key === 'F1') { e.preventDefault(); toggleAdminMode(); return; }
+
+            // Public shortcuts (always active)
+            switch (e.key.toLowerCase()) {
+                case '1': switchLayer('both'); return;
+                case '2': switchLayer('model'); return;
+                case '3': switchLayer('dom'); return;
+                case 't': viewTop(); return;
+                case 'f': resetView(); return;
+            }
+
+            // Admin-only calibration keys
+            if (!adminMode) return;
+
+            var step = 0.5;      // metres
+            var rotStep = 0.005; // radians
+
+            if (modelGroup) {
+                if (e.key === 'ArrowUp'    || e.key.toLowerCase() === 'i') modelGroup.position.y += step;
+                else if (e.key === 'ArrowDown'  || e.key.toLowerCase() === 'k') modelGroup.position.y -= step;
+                else if (e.key === 'ArrowLeft'  || e.key.toLowerCase() === 'j') modelGroup.position.x -= step;
+                else if (e.key === 'ArrowRight' || e.key.toLowerCase() === 'l') modelGroup.position.x += step;
+                else if (e.key.toLowerCase() === 'u') modelGroup.rotation.y += rotStep;
+                else if (e.key.toLowerCase() === 'o') modelGroup.rotation.y -= rotStep;
+                else { /* not a model key */ }
+            }
+
+            if (domPlane) {
+                if (e.key.toLowerCase() === 'w') domPlane.position.y += step;
+                else if (e.key.toLowerCase() === 's') domPlane.position.y -= step;
+                else if (e.key.toLowerCase() === 'a') domPlane.position.x -= step;
+                else if (e.key.toLowerCase() === 'd') domPlane.position.x += step;
+                else if (e.key.toLowerCase() === 'q') domPlane.rotation.z += rotStep;
+                else if (e.key.toLowerCase() === 'e') domPlane.rotation.z -= rotStep;
+            }
+
+            // Log live values and queue auto-save
+            if (modelGroup && domPlane) {
+                console.log(
+                    'Model:', modelGroup.position.x.toFixed(2), modelGroup.position.y.toFixed(2), 'rotY:', modelGroup.rotation.y.toFixed(4),
+                    '| DOM rotZ:', domPlane.rotation.z.toFixed(4)
+                );
+                scheduleAutoSave();
+            }
+        });
+
+        // ============================================================
+        // INTERACTIVE MAP CONTROLLER
+        // ============================================================
+        // 3-state toggle: collapsed → normal → expanded (1/4 screen) → collapsed
+        var mapState = 'collapsed'; // 'collapsed' | 'normal' | 'expanded'
+        var stateIcons = { collapsed: 'MỞ ↗', normal: 'PHÓNG TO ⛶', expanded: 'THU NHỎ ✕' };
+
+        window.toggleMiniMap = function() {
+            var el  = document.getElementById('miniMapContainer');
+            var btn = document.getElementById('toggleMiniMapBtn');
+            if (mapState === 'collapsed') {
+                el.classList.remove('collapsed', 'expanded');
+                mapState = 'normal';
+            } else if (mapState === 'normal') {
+                el.classList.remove('collapsed');
+                el.classList.add('expanded');
+                mapState = 'expanded';
+            } else {
+                el.classList.remove('expanded');
+                el.classList.add('collapsed');
+                mapState = 'collapsed';
+            }
+            btn.textContent = stateIcons[mapState];
+        };
+
+        // Wheel-without-Ctrl zoom: intercept scroll on the overlay and re-dispatch
+        // with ctrlKey=true on the iframe so Google Maps zooms normally.
+        (function() {
+            var catcher = document.getElementById('mapScrollCatcher');
+            var iframe  = document.getElementById('googleMapIframe');
+            if (!catcher || !iframe) return;
+
+            catcher.addEventListener('wheel', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                // Re-dispatch with ctrlKey forced so Google Maps treats it as pinch-zoom
+                var synth = new WheelEvent('wheel', {
+                    bubbles:    true,
+                    cancelable: true,
+                    deltaX:     e.deltaX,
+                    deltaY:     e.deltaY,
+                    deltaZ:     e.deltaZ,
+                    deltaMode:  e.deltaMode,
+                    clientX:    e.clientX,
+                    clientY:    e.clientY,
+                    ctrlKey:    true,   // <- trick Google Maps into zoom mode
+                    shiftKey:   e.shiftKey,
+                    altKey:     e.altKey
+                });
+                iframe.dispatchEvent(synth);
+            }, { passive: false });
+
+            // Click on overlay passes click through to iframe
+            catcher.addEventListener('click', function(e) {
+                catcher.style.pointerEvents = 'none';
+                var el = document.elementFromPoint(e.clientX, e.clientY);
+                catcher.style.pointerEvents = '';
+                if (el) el.click();
+            });
+
+            // While pointer is over iframe body: hide overlay so user can interact normally
+            catcher.addEventListener('mousedown', function() {
+                catcher.style.display = 'none';
+                function restore() { catcher.style.display = ''; document.removeEventListener('mouseup', restore); }
+                document.addEventListener('mouseup', restore);
+            });
+        })();
+
+        // ============================================================
+        // START
+        // ============================================================
+        init().then(function() {
+            console.log('[READY] Potree Viewer — Unified Scene');
+
+            // ── Language toggle (EN / VI only) ──────────────────────
+            // Wait briefly for Potree GUI to fully render
+            setTimeout(function() {
+                var langContainer = document.getElementById('potree_languages');
+                if (!langContainer) return;
+
+                // Clear the auto-generated language links (all locales)
+                langContainer.innerHTML = '';
+
+                // Vietnamese translations for common Potree i18n keys
+                var VI = {
+                    'tb.rendering_opt': 'Hiển Thị',
+                    'tb.tools_opt': 'Công Cụ',
+                    'tb.scene_opt': 'Cảnh',
+                    'tb.filters_opt': 'Bộ Lọc',
+                    'tb.about_opt': 'Giới Thiệu',
+                    'appearance.nb_max_pts': 'Số điểm tối đa',
+                    'appearance.field_view': 'Góc nhìn',
+                    'appearance.edl_enable': 'Bật EDL',
+                    'appearance.edl_radius': 'Bán kính EDL',
+                    'appearance.edl_strength': 'Cường độ EDL',
+                    'appearance.edl_opacity': 'Độ trong suốt EDL',
+                    'appearance.min_node_size': 'Kích thước node tối thiểu',
+                    'appearance.box': 'Hiện khung bao',
+                    'appearance.freeze': 'Đóng băng',
+                    'appearance.move_speed': 'Tốc độ di chuyển',
+                    'filters.return_number': 'Số lần phản xạ',
+                    'filters.number_of_returns': 'Tổng số phản xạ',
+                    'tb.both': 'Cả hai',
+                    'tb.model': '3D Model',
+                    'tb.dom': 'Ảnh DOM',
+                    'tb.default': 'Mặc định',
+                    'tb.topdown': 'Trên xuống'
+                };
+                var EN = {
+                    'tb.rendering_opt': 'Appearance',
+                    'tb.tools_opt': 'Tools',
+                    'tb.scene_opt': 'Scene',
+                    'tb.filters_opt': 'Filters',
+                    'tb.about_opt': 'About',
+                    'appearance.nb_max_pts': 'Point Budget',
+                    'appearance.field_view': 'Field of View',
+                    'appearance.edl_enable': 'Enable EDL',
+                    'appearance.edl_radius': 'EDL Radius',
+                    'appearance.edl_strength': 'EDL Strength',
+                    'appearance.edl_opacity': 'EDL Opacity',
+                    'appearance.min_node_size': 'Min Node Size',
+                    'appearance.box': 'Show Bounding Box',
+                    'appearance.freeze': 'Freeze',
+                    'appearance.move_speed': 'Move Speed',
+                    'filters.return_number': 'Return Number',
+                    'filters.number_of_returns': 'Number of Returns',
+                    'tb.both': 'Both',
+                    'tb.model': '3D Model',
+                    'tb.dom': 'DOM Image',
+                    'tb.default': 'Default',
+                    'tb.topdown': 'Top Down'
+                };
+
+                var currentLang = localStorage.getItem('pv_lang') || 'en';
+
+                function applyLang(lang) {
+                    var dict = (lang === 'vi') ? VI : EN;
+                    document.querySelectorAll('[data-i18n]').forEach(function(el) {
+                        var key = el.getAttribute('data-i18n');
+                        if (dict[key]) el.textContent = dict[key];
+                    });
+                    
+                    if (viewer) {
+                        viewer.setLanguage(lang);
+                    }
+                    
+                    currentLang = lang;
+                    localStorage.setItem('pv_lang', lang);
+                    // Update active state
+                    document.querySelectorAll('.pv-lang-btn').forEach(function(btn) {
+                        btn.classList.toggle('lang-active', btn.dataset.lang === lang);
+                    });
+                }
+
+                // Build EN / VI buttons
+                ['en', 'vi'].forEach(function(lang) {
+                    var a = document.createElement('a');
+                    a.className = 'pv-lang-btn';
+                    a.dataset.lang = lang;
+                    a.textContent = lang.toUpperCase();
+                    a.href = '#';
+                    a.onclick = function(e) { e.preventDefault(); applyLang(lang); };
+                    langContainer.appendChild(a);
+                });
+
+                // Inject label
+                var label = document.createElement('span');
+                label.className = 'pv-lang-label';
+                label.textContent = '🌐';
+                langContainer.insertBefore(label, langContainer.firstChild);
+
+                // Apply on load
+                applyLang(currentLang);
+            }, 800);
+
+        }).catch(function(err) {
+            console.error('[FATAL]', err);
+            loadingText.innerHTML = '<span style="color:#e74c3c">Lỗi khởi tạo:</span><br>' + err.message;
+        });
+        
+        // Dynamically fill slider tracks with blue based on handle position
+        setInterval(function() {
+            if (typeof document !== 'undefined') {
+                document.querySelectorAll(".ui-slider").forEach(function(slider) {
+                    var handle = slider.querySelector(".ui-slider-handle");
+                    if (handle && handle.style.left) {
+                        slider.style.setProperty("--slider-percent", handle.style.left);
+                    }
+                });
+            }
+        }, 100);
+    })();
+    </script>
+</body>
+</html>
