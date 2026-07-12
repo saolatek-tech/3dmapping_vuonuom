@@ -90,9 +90,16 @@
             .btn { padding: 6px 12px; font-size: 11px; border-radius: 8px; }
             .sep { display: none; }
 
-            /* Sidebar fills full screen width on mobile */
+            /* Sidebar overlays the 3D canvas — canvas stays full-screen always */
             #potree_sidebar_container {
                 width: 100vw !important;
+                z-index: 6000 !important;  /* Above canvas */
+            }
+
+            /* Canvas is ALWAYS full-screen on mobile — sidebar overlays on top */
+            #potree_render_area {
+                left: 0px !important;
+                right: 0px !important;
             }
 
             /* Toggle button sits on the right edge on mobile */
@@ -101,6 +108,7 @@
                 border-left: 1px solid rgba(14, 165, 233, 0.2);
                 border-right: none;
                 border-radius: 10px 0 0 10px;
+                z-index: 6001 !important;  /* Above sidebar */
             }
             #sidebar-toggle-btn svg {
                 transform: rotate(180deg);
@@ -893,6 +901,31 @@
 
             await viewer.loadGUI();
 
+            // On mobile: sidebar overlays the canvas, so force render area to stay full-screen
+            // (Potree's default positions it at left:300px after loadGUI)
+            if (window.innerWidth <= 768) {
+                var ra = document.getElementById('potree_render_area');
+                if (ra) ra.style.setProperty('left', '0px', 'important');
+
+                // ── Auto-close sidebar on mobile when a tool is activated ──
+                // Tool icons have class "button-icon". When tapped, auto-collapse
+                // the sidebar so the user can immediately place measurement points.
+                var sidebarEl2 = document.getElementById('potree_sidebar_container');
+                sidebarEl2.addEventListener('click', function(e) {
+                    var icon = e.target.closest('.button-icon');
+                    if (icon && typeof window.toggleSidebar === 'function') {
+                        // Small delay so Potree can register the tool selection first
+                        setTimeout(function() {
+                            // Only collapse if currently open
+                            var btn = document.getElementById('sidebar-toggle-btn');
+                            if (btn && !btn.classList.contains('collapsed')) {
+                                window.toggleSidebar();
+                            }
+                        }, 180);
+                    }
+                }, true); // capture phase ensures we catch it before sidebar hides
+            }
+
             viewer.setEDLEnabled(true);
             viewer.setPointBudget(12_000_000); // 12 triệu điểm (đủ nét và không bị quá tải mạng)
             viewer.setMinNodeSize(8);          // 8 (tải chi tiết tốt mà không tạo quá nhiều HTTP requests liên tục)
@@ -1621,22 +1654,43 @@
 
         window.toggleSidebar = function() {
             collapsed = !collapsed;
+            var mobile = isMobile();
+
             if (collapsed) {
                 sidebarEl.classList.add('sidebar-collapsed');
+                // Disable pointer events so hidden sidebar doesn't block 3D canvas
+                sidebarEl.style.pointerEvents = 'none';
                 toggleBtn.classList.add('collapsed');
-                // Center toolbar over full viewport width (desktop only)
-                if (!isMobile()) {
+
+                // Desktop only: tell Potree to expand render area to full width
+                // On mobile, render area is always left:0 (sidebar overlays, not pushes)
+                if (!mobile && viewer && typeof viewer.toggleSidebar === 'function') {
+                    viewer.toggleSidebar();
+                } else if (!mobile) {
+                    var ra = document.getElementById('potree_render_area');
+                    if (ra) ra.style.left = '0px';
+                }
+
+                if (!mobile) {
                     toolbarEl.style.marginLeft = (-sidebarWidth / 2) + 'px';
                 }
-                // Mobile: restore Google Map + toolbar
                 document.body.classList.remove('sidebar-open-mobile');
             } else {
                 sidebarEl.classList.remove('sidebar-collapsed');
+                sidebarEl.style.pointerEvents = '';
                 toggleBtn.classList.remove('collapsed');
-                if (!isMobile()) {
+
+                // Desktop only: tell Potree to shrink render area (300px left offset)
+                if (!mobile && viewer && typeof viewer.toggleSidebar === 'function') {
+                    viewer.toggleSidebar();
+                } else if (!mobile) {
+                    var ra = document.getElementById('potree_render_area');
+                    if (ra) ra.style.left = '300px';
+                }
+
+                if (!mobile) {
                     toolbarEl.style.marginLeft = '0px';
                 }
-                // Mobile: hide Google Map + toolbar while sidebar is open
                 document.body.classList.add('sidebar-open-mobile');
             }
         };
