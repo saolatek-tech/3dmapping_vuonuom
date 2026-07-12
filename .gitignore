@@ -20,3 +20,5 @@ dist/
 
 # Unused large model exceeding GitHub limit
 glb/model.glb
+dom/*backup*
+
