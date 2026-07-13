@@ -16,7 +16,7 @@
     <link rel="dns-prefetch" href="https://maps.googleapis.com">
 
     <!-- Preload largest assets so browser fetches in parallel while parsing HTML -->
-    <link rel="preload" href="./glb/model_49m.glb" as="fetch" crossorigin>
+    <link rel="preload" href="./glb/model_49m_meshopt.glb" as="fetch" crossorigin>
     <link rel="preload" href="./dom/dom.jpg" as="image">
     <link rel="preload" href="./potree/potree/potree.js" as="script">
 
@@ -908,12 +908,16 @@
         #potree_quick_buttons {
             display: none !important;
         }
+
+
     </style>
 </head>
 
 <body>
     <div id="potree_render_area"></div>
     <div id="potree_sidebar_container"></div>
+
+
 
     <!-- Sidebar Toggle Button -->
     <button id="sidebar-toggle-btn" title="Ẩn / Hiện sidebar" onclick="toggleSidebar()">
@@ -931,8 +935,8 @@
     </div>
 
     <div id="toolbar">
-        <button class="btn active layer-btn" data-layer="both" data-i18n="tb.both" onclick="switchLayer('both')">Cả
-            hai</button>
+        <button class="btn active layer-btn" data-layer="both" data-i18n="tb.both" onclick="switchLayer('both')">3D
+            Model + Bản đồ</button>
         <button class="btn layer-btn" data-layer="model" data-i18n="tb.model" onclick="switchLayer('model')">3D
             Model</button>
         <button class="btn layer-btn" data-layer="dom" data-i18n="tb.dom" onclick="switchLayer('dom')">Ảnh DOM</button>
@@ -1091,24 +1095,23 @@
                     var raycaster = new THREE.Raycaster();
                     raycaster.setFromCamera(nmouse, camera);
 
-                    // Gom tất cả mesh visible từ scene chính + modelGroup
-                    var meshes = [];
-                    viewer.scene.scene.traverse(function (child) {
-                        if (child.isMesh && child.visible !== false) {
-                            meshes.push(child);
-                        }
-                    });
-                    if (modelGroup && modelGroup.visible !== false) {
-                        modelGroup.traverse(function (child) {
-                            if (child.isMesh && child.visible !== false) {
-                                meshes.push(child);
+                    // Gom tất cả các đối tượng mục tiêu ở cấp cao nhất trong scene (modelGroup, domPlane, GoogleMap_Tile)
+                    // Cách này cực kỳ nhẹ và loại bỏ hoàn toàn việc traverse sâu/logging gây lag
+                    var targets = [];
+                    if (viewer.scene.scene && viewer.scene.scene.children) {
+                        viewer.scene.scene.children.forEach(function (child) {
+                            if (child.visible !== false) {
+                                if (child === modelGroup || child === domPlane || child.name === 'GoogleMap_Tile') {
+                                    targets.push(child);
+                                }
                             }
                         });
                     }
 
-                    if (meshes.length === 0) return null;
+                    if (targets.length === 0) return null;
 
-                    var intersects = raycaster.intersectObjects(meshes, false);
+                    // recursive = true để raycast xuyên vào các mảnh con của modelGroup
+                    var intersects = raycaster.intersectObjects(targets, true);
                     if (intersects.length > 0) {
                         var hit = intersects[0];
                         // Trả về object giả lập có đầy đủ thuộc tính như Potree point
@@ -1136,6 +1139,78 @@
                 };
 
                 console.log('[Patch] Mesh picking installed — measurement tools now work on DOM & Model');
+            }
+
+            // ============================================================
+            // MOBILE MEASUREMENT PATCH — Tap-to-Click Bridge for Mobile
+            // ============================================================
+            function installMobileMeasurementPatch(viewer) {
+                var dom = viewer.renderer.domElement;
+                var touchStartPos = { x: 0, y: 0 };
+                var touchStartTime = 0;
+                var hasMoved = false;
+
+                dom.addEventListener('touchstart', function (e) {
+                    if (e.touches.length === 1) {
+                        touchStartPos.x = e.touches[0].clientX;
+                        touchStartPos.y = e.touches[0].clientY;
+                        touchStartTime = Date.now();
+                        hasMoved = false;
+                    }
+                }, { passive: true });
+
+                dom.addEventListener('touchmove', function (e) {
+                    if (e.touches.length === 1) {
+                        var dx = e.touches[0].clientX - touchStartPos.x;
+                        var dy = e.touches[0].clientY - touchStartPos.y;
+                        if (Math.sqrt(dx * dx + dy * dy) > 15) { // 15px threshold to ignore micro-drags
+                            hasMoved = true;
+                        }
+                    }
+                }, { passive: true });
+
+                dom.addEventListener('touchend', function (e) {
+                    var duration = Date.now() - touchStartTime;
+                    // If it was a quick tap (under 300ms) and the finger didn't drag/move, simulate mouse events
+                    if (!hasMoved && duration < 300) {
+                        var clientX = touchStartPos.x;
+                        var clientY = touchStartPos.y;
+
+                        // Dispatch mousedown
+                        var mousedownEvent = new MouseEvent('mousedown', {
+                            clientX: clientX,
+                            clientY: clientY,
+                            button: 0,
+                            buttons: 1,
+                            bubbles: true,
+                            cancelable: true
+                        });
+                        dom.dispatchEvent(mousedownEvent);
+
+                        // Dispatch mouseup
+                        var mouseupEvent = new MouseEvent('mouseup', {
+                            clientX: clientX,
+                            clientY: clientY,
+                            button: 0,
+                            buttons: 0,
+                            bubbles: true,
+                            cancelable: true
+                        });
+                        dom.dispatchEvent(mouseupEvent);
+
+                        // Dispatch click
+                        var clickEvent = new MouseEvent('click', {
+                            clientX: clientX,
+                            clientY: clientY,
+                            button: 0,
+                            bubbles: true,
+                            cancelable: true
+                        });
+                        dom.dispatchEvent(clickEvent);
+
+                        console.log('[Mobile Patch] Simulated click at:', clientX, clientY);
+                    }
+                }, { passive: true });
             }
 
             // ============================================================
@@ -1183,6 +1258,9 @@
 
                 // Cài patch mesh picking
                 installMeshPickingPatch();
+
+                // Cài patch đo đạc trên điện thoại (Tap-to-Click Bridge)
+                installMobileMeasurementPatch(viewer);
 
                 // Patch fitToScreen to support 3D Model & DOM Plane when point clouds are empty
                 var originalFitToScreen = viewer.fitToScreen;
@@ -1459,7 +1537,7 @@
 
                 var loader = new THREE.GLTFLoader();
                 loader.setMeshoptDecoder(MeshoptDecoder);
-                loader.load('./glb/model_49m.glb',
+                loader.load('./glb/model_49m_meshopt.glb',
                     function (gltf) {
                         modelGroup = gltf.scene;
 
@@ -1481,6 +1559,12 @@
                             if (child.isMesh) {
                                 child.castShadow = true;
                                 child.receiveShadow = true;
+                                // Disable frustum culling to prevent the model from disappearing/flickering at certain camera angles
+                                child.frustumCulled = false;
+                                if (child.geometry) {
+                                    child.geometry.computeBoundingBox();
+                                    child.geometry.computeBoundingSphere();
+                                }
                                 if (child.material) {
                                     var mats = Array.isArray(child.material) ? child.material : [child.material];
                                     mats.forEach(function (mat) {
@@ -1539,7 +1623,7 @@
 
                 // Show selected layers
                 if (modelGroup) modelGroup.visible = (layer === 'model' || layer === 'both');
-                if (domPlane) domPlane.visible = (layer === 'dom' || layer === 'both');
+                if (domPlane) domPlane.visible = (layer === 'dom');
 
                 // Hide Google Maps tiles in the 3D view when showing only model or only DOM plane
                 if (viewer && viewer.scene && viewer.scene.scene) {
@@ -1787,7 +1871,7 @@
                         'appearance.move_speed': 'Tốc độ di chuyển',
                         'filters.return_number': 'Số lần phản xạ',
                         'filters.number_of_returns': 'Tổng số phản xạ',
-                        'tb.both': 'Cả hai',
+                        'tb.both': 'Bản đồ',
                         'tb.model': '3D Model',
                         'tb.dom': 'Ảnh DOM',
                         'tb.default': 'Mặc định',
@@ -1811,7 +1895,7 @@
                         'appearance.move_speed': 'Move Speed',
                         'filters.return_number': 'Return Number',
                         'filters.number_of_returns': 'Number of Returns',
-                        'tb.both': 'Both',
+                        'tb.both': 'Map',
                         'tb.model': '3D Model',
                         'tb.dom': 'DOM Image',
                         'tb.default': 'Default',
