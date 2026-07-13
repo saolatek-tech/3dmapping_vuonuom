@@ -16,7 +16,7 @@
     <link rel="dns-prefetch" href="https://maps.googleapis.com">
 
     <!-- Preload largest assets so browser fetches in parallel while parsing HTML -->
-    <link rel="preload" href="./glb/model_49m_meshopt.glb" as="fetch" crossorigin>
+    <link rel="preload" href="./glb/model_49m_resized_opt.glb" as="fetch" crossorigin>
     <link rel="preload" href="./dom/dom.jpg" as="image">
     <link rel="preload" href="./potree/potree/potree.js" as="script">
 
@@ -1537,7 +1537,7 @@
 
                 var loader = new THREE.GLTFLoader();
                 loader.setMeshoptDecoder(MeshoptDecoder);
-                loader.load('./glb/model_49m_meshopt.glb',
+                loader.load('./glb/model_49m_resized_opt.glb',
                     function (gltf) {
                         modelGroup = gltf.scene;
 
