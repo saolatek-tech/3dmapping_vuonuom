@@ -1,0 +1,1083 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Công cụ Cắt & Xử lý Mô hình 3D - Vườn Ươm</title>
+    
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+    
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css">
+    <!-- Leaflet Geoman CSS -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@geoman-io/leaflet-geoman-free@2.14.0/dist/leaflet-geoman.css">
+
+    <style>
+        :root {
+            --bg-primary: #0b0f19;
+            --bg-secondary: #131a2e;
+            --border-color: rgba(14, 165, 233, 0.15);
+            --border-hover: rgba(14, 165, 233, 0.35);
+            --primary: #0ea5e9;
+            --primary-hover: #0284c7;
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+            --accent-red: #ef4444;
+            --accent-green: #10b981;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+            font-family: 'Inter', sans-serif;
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Header */
+        header {
+            background: rgba(19, 26, 46, 0.8);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--border-color);
+            padding: 14px 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .header-title {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .header-logo {
+            width: 24px;
+            height: 24px;
+            fill: var(--primary);
+        }
+
+        .header-title h1 {
+            font-size: 16px;
+            font-weight: 600;
+            letter-spacing: -0.02em;
+        }
+
+        .header-status {
+            font-size: 12px;
+            color: var(--text-secondary);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--text-secondary);
+        }
+
+        .status-dot.idle {
+            background: var(--text-secondary);
+            box-shadow: 0 0 8px var(--text-secondary);
+        }
+
+        .status-dot.running {
+            background: var(--accent-green);
+            box-shadow: 0 0 8px var(--accent-green);
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.3); opacity: 0.5; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        /* Main Layout */
+        .app-container {
+            flex: 1;
+            display: flex;
+            overflow: hidden;
+            position: relative;
+        }
+
+        /* Sidebar Control Panel */
+        .sidebar {
+            width: 380px;
+            background: var(--bg-secondary);
+            border-right: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+            padding: 20px;
+            gap: 20px;
+            z-index: 10;
+            box-shadow: 10px 0 30px rgba(0, 0, 0, 0.3);
+        }
+
+        .panel-section {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .section-label {
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-secondary);
+        }
+
+        .input-group {
+            display: flex;
+            gap: 8px;
+        }
+
+        .form-control {
+            flex: 1;
+            background: rgba(11, 15, 25, 0.6);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            color: var(--text-primary);
+            padding: 10px 14px;
+            font-family: inherit;
+            font-size: 13px;
+            transition: all 0.2s;
+        }
+
+        .form-control:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 2px rgba(14, 165, 233, 0.15);
+        }
+
+        .btn {
+            background: rgba(14, 165, 233, 0.1);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            padding: 10px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-family: inherit;
+            font-size: 13px;
+            font-weight: 500;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .btn:hover {
+            background: rgba(14, 165, 233, 0.2);
+            border-color: var(--primary);
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary-hover), var(--primary));
+            border-color: transparent;
+            color: white;
+            box-shadow: 0 4px 12px rgba(14, 165, 233, 0.25);
+        }
+
+        .btn-primary:hover {
+            background: linear-gradient(135deg, var(--primary), var(--primary-hover));
+            box-shadow: 0 4px 16px rgba(14, 165, 233, 0.4);
+            transform: translateY(-1px);
+        }
+
+        .btn-danger {
+            background: rgba(239, 68, 68, 0.1);
+            border-color: rgba(239, 68, 68, 0.2);
+            color: var(--accent-red);
+        }
+
+        .btn-danger:hover {
+            background: rgba(239, 68, 68, 0.2);
+            border-color: var(--accent-red);
+        }
+
+        .btn-success {
+            background: rgba(16, 185, 129, 0.1);
+            border-color: rgba(16, 185, 129, 0.2);
+            color: var(--accent-green);
+        }
+
+        .btn-success:hover {
+            background: rgba(16, 185, 129, 0.2);
+            border-color: var(--accent-green);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none !important;
+            box-shadow: none !important;
+        }
+
+        /* Checkbox groups */
+        .checkbox-card {
+            background: rgba(11, 15, 25, 0.4);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            padding: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .checkbox-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
+            font-size: 13px;
+            user-select: none;
+        }
+
+        .checkbox-item input {
+            cursor: pointer;
+            accent-color: var(--primary);
+            width: 15px;
+            height: 15px;
+        }
+
+        /* Range Slider */
+        .range-container {
+            background: rgba(11, 15, 25, 0.4);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            padding: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .range-header {
+            display: flex;
+            justify-content: space-between;
+            font-size: 13px;
+        }
+
+        .range-slider {
+            width: 100%;
+            accent-color: var(--primary);
+            cursor: pointer;
+            margin-top: 4px;
+        }
+
+        /* WKT output card */
+        .wkt-container {
+            background: rgba(11, 15, 25, 0.5);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            padding: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .wkt-textarea {
+            width: 100%;
+            height: 70px;
+            background: rgba(11, 15, 25, 0.9);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            color: var(--text-secondary);
+            font-family: 'Fira Code', monospace;
+            font-size: 11px;
+            padding: 6px;
+            resize: none;
+            outline: none;
+        }
+
+        /* Center Content Area */
+        .content-area {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            position: relative;
+        }
+
+        /* Map view container */
+        .map-wrapper {
+            flex: 2;
+            position: relative;
+            background: #060810;
+        }
+
+        #map {
+            width: 100%;
+            height: 100%;
+        }
+
+        /* Map helper overlay */
+        .map-overlay-instructions {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 1000;
+            background: rgba(11, 15, 25, 0.85);
+            border: 1px solid var(--border-color);
+            border-radius: 30px;
+            padding: 6px 18px;
+            font-size: 12px;
+            pointer-events: none;
+            backdrop-filter: blur(8px);
+            box-shadow: 0 4px 16px rgba(0,0,0,0.5);
+            color: var(--text-secondary);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .map-overlay-instructions span {
+            color: var(--primary);
+            font-weight: 500;
+        }
+
+        /* Terminal Logs viewport */
+        .terminal-wrapper {
+            height: 250px;
+            background: #05070c;
+            border-top: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            z-index: 5;
+            box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.4);
+        }
+
+        .terminal-header {
+            background: rgba(19, 26, 46, 0.9);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            padding: 8px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .terminal-title {
+            font-size: 11px;
+            font-family: 'Fira Code', monospace;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: var(--text-secondary);
+        }
+
+        .terminal-clear {
+            font-size: 11px;
+            color: var(--text-secondary);
+            cursor: pointer;
+            background: transparent;
+            border: none;
+        }
+
+        .terminal-clear:hover {
+            color: var(--text-primary);
+        }
+
+        .terminal-body {
+            flex: 1;
+            overflow-y: auto;
+            padding: 12px 20px;
+            font-family: 'Fira Code', monospace;
+            font-size: 12px;
+            line-height: 1.5;
+            color: #d1d5db;
+            scroll-behavior: smooth;
+        }
+
+        .log-line {
+            white-space: pre-wrap;
+            margin-bottom: 2px;
+        }
+
+        .log-sys {
+            color: var(--primary);
+            font-weight: 500;
+        }
+
+        .log-err {
+            color: var(--accent-red);
+        }
+
+        .log-success {
+            color: var(--accent-green);
+        }
+
+        /* Map loading placeholder overlay */
+        .map-placeholder {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #090c15;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 16px;
+            z-index: 2000;
+            color: var(--text-secondary);
+            text-align: center;
+            padding: 20px;
+        }
+
+        .map-placeholder-title {
+            color: var(--text-primary);
+            font-size: 18px;
+            font-weight: 600;
+        }
+
+        .spinner {
+            width: 48px;
+            height: 48px;
+            border: 4px solid rgba(14, 165, 233, 0.1);
+            border-top: 4px solid var(--primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Header -->
+    <header>
+        <div class="header-title">
+            <svg class="header-logo" viewBox="0 0 24 24">
+                <path d="M12 2L2 22h20L12 2zm0 3.99L18.8 19H5.2L12 5.99zM11 16h2v2h-2zm0-6h2v4h-2z"/>
+            </svg>
+            <h1>Công cụ Cắt & Xử lý Mô hình 3D Vườn Ươm</h1>
+        </div>
+        <div class="header-status">
+            <div id="statusDot" class="status-dot idle"></div>
+            <span id="statusText">Trạng thái: Sẵn sàng</span>
+        </div>
+    </header>
+
+    <!-- Main Content Layout -->
+    <div class="app-container">
+        
+        <!-- Sidebar Controls -->
+        <div class="sidebar">
+            
+            <!-- Project path configuration -->
+            <div class="panel-section">
+                <label class="section-label">Đường dẫn dự án Copre</label>
+                <div class="input-group">
+                    <input type="text" id="projectPath" class="form-control" placeholder="C:/path/to/project" value="C:/Users/duong/3dmaping/Vuon_Uom_26062026">
+                    <button id="btnLoadProject" class="btn">Tải dự án</button>
+                </div>
+            </div>
+
+            <!-- Project info metadata (Hidden by default, shown when loaded) -->
+            <div id="projectInfo" class="panel-section" style="display: none;">
+                <label class="section-label">Thông tin dự án</label>
+                <div class="checkbox-card" style="font-size: 13px; line-height: 1.4; color: var(--text-secondary);">
+                    <div>Tên: <span id="lblProjectName" style="color: var(--text-primary); font-weight: 500;">-</span></div>
+                    <div>Độ phân giải: <span id="lblResolution" style="color: var(--text-primary); font-weight: 500;">-</span></div>
+                    <div>Kích thước: <span id="lblDimensions" style="color: var(--text-primary); font-weight: 500;">-</span></div>
+                    <div>Hệ toạ độ: <span style="color: var(--text-primary); font-weight: 500;">VN-2000 (105.75)</span></div>
+                    <hr style="border:0; border-top:1px solid rgba(255,255,255,0.08); margin:8px 0;">
+                    <div style="font-size:11px;font-weight:600;color:var(--primary);margin-bottom:4px;text-transform:uppercase;">Toạ độ cân chỉnh hiện tại:</div>
+                    <div id="lblCalibStatus" style="font-size:11px;color:#cbd5e1;line-height:1.3;">Chưa có tệp hiệu chỉnh (sử dụng mặc định)</div>
+                </div>
+                <button id="btnOpenCalibration" class="btn" style="margin-top: 6px; font-weight: 600; border-color: rgba(255,215,0,0.3); color: #ffd700; background: rgba(255,215,0,0.05);">
+                    🔧 MỞ BẢN ĐỒ CÂN CHỈNH 3D
+                </button>
+            </div>
+
+            <!-- Step slider settings -->
+            <div class="panel-section">
+                <label class="section-label">Độ phân giải Điểm Đám Mây</label>
+                <div class="range-container">
+                    <div class="range-header">
+                        <span>Decimation Step:</span>
+                        <span id="lblStepValue" style="color: var(--primary); font-weight: 600;">1 (Chất lượng cao nhất)</span>
+                    </div>
+                    <input type="range" id="pointcloudStep" class="range-slider" min="1" max="15" value="1">
+                    <span style="font-size: 11px; color: var(--text-secondary); margin-top: 2px;">
+                        Bước 1 = lấy 100% điểm; Bước 5 = lấy 20% điểm; Bước 10 = lấy 10% điểm.
+                    </span>
+                </div>
+            </div>
+
+            <!-- Skip flags -->
+            <div class="panel-section">
+                <label class="section-label">Cấu hình thành phần xử lý</label>
+                <div class="checkbox-card">
+                    <label class="checkbox-item">
+                        <input type="checkbox" id="chkSkipPointCloud">
+                        <span>Bỏ qua Điểm Đám Mây (Point Cloud)</span>
+                    </label>
+                    <label class="checkbox-item">
+                        <input type="checkbox" id="chkSkipModel">
+                        <span>Bỏ qua Mô hình 3D (Mesh GLB)</span>
+                    </label>
+                    <label class="checkbox-item">
+                        <input type="checkbox" id="chkSkipDOM">
+                        <span>Bỏ qua Ảnh trực giao (DOM)</span>
+                    </label>
+                </div>
+            </div>
+
+            <!-- Model compression settings -->
+            <div class="panel-section">
+                <label class="section-label">Nén và Tối ưu hóa Mesh (gltfpack)</label>
+                <div class="checkbox-card">
+                    <label class="checkbox-item">
+                        <input type="checkbox" id="chkCompressModel" checked>
+                        <span>Nén Mesh hình học (Meshopt)</span>
+                    </label>
+                    <div style="display:flex; flex-direction:column; gap:4px; margin-top:2px;">
+                        <span style="font-size:11px; color:var(--text-secondary);">Tỷ lệ giảm lưới đa giác:</span>
+                        <select id="selectSimplifyRatio" class="form-control" style="padding: 4px 8px; height: auto;">
+                            <option value="">Giữ nguyên lưới gốc (100% polygons)</option>
+                            <option value="0.75">Rút gọn 25% lưới (còn 75% polygons)</option>
+                            <option value="0.5" selected>Rút gọn 50% lưới (còn 50% polygons)</option>
+                            <option value="0.2">Rút gọn mạnh 80% lưới (còn 20% polygons - nhẹ nhất)</option>
+                        </select>
+                     </div>
+                </div>
+            </div>
+
+            <!-- Crop coordinate output (WKT) -->
+            <div class="panel-section">
+                <label class="section-label">Toạ độ vùng cắt (WKT format)</label>
+                <div class="wkt-container">
+                    <textarea id="wktInput" class="wkt-textarea" placeholder="Vẽ vùng cắt trên bản đồ để tự động lấy toạ độ..."></textarea>
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-top: 4px;">
+                        <button id="btnClearShape" class="btn" style="padding: 4px 8px; font-size: 11px; border-radius: 4px;">Xoá vùng vẽ</button>
+                        <span style="font-size:10px; color:var(--text-secondary);">Hệ toạ độ VN-2000</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Run Actions -->
+            <div class="panel-section" style="margin-top: auto; gap: 10px;">
+                <button id="btnBuild" class="btn btn-primary" disabled>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 14.5v-9l6 4.5-6 4.5z"/>
+                    </svg>
+                    TIẾN HÀNH CẮT & XỬ LÝ
+                </button>
+                <button id="btnPreview" class="btn" disabled>Tạo Preview nhanh (Dành cho dự án mới)</button>
+                <button id="btnCancel" class="btn btn-danger" style="display: none;">HUỶ TIẾN TRÌNH</button>
+                <button id="btnViewResult" class="btn btn-success" style="display: none;">
+                    XEM KẾT QUẢ 3D
+                </button>
+            </div>
+
+        </div>
+
+        <!-- Center View Area -->
+        <div class="content-area">
+            
+            <!-- Map window -->
+            <div class="map-wrapper">
+                
+                <!-- Map UI instructions -->
+                <div id="mapInstructions" class="map-overlay-instructions" style="display: none;">
+                    Sử dụng công cụ ở góc trái bản đồ để <span>Vẽ vùng đa giác hoặc hình chữ nhật</span> cần xử lý
+                </div>
+                
+                <!-- Map viewport -->
+                <div id="map"></div>
+
+                <!-- Map placeholder before loading -->
+                <div id="mapPlaceholder" class="map-placeholder">
+                    <div id="placeholderSpinner" class="spinner" style="display: none;"></div>
+                    <div id="placeholderTitle" class="map-placeholder-title">Chưa tải dự án</div>
+                    <div id="placeholderText">Hãy nhập đường dẫn thư mục dự án bên trái và bấm <b>Tải dự án</b> để tiếp tục.</div>
+                </div>
+
+            </div>
+
+            <!-- Terminal logs -->
+            <div class="terminal-wrapper">
+                <div class="terminal-header">
+                    <div class="terminal-title">Bảng ghi log tiến trình (Console logs)</div>
+                    <button id="btnClearLogs" class="terminal-clear">Xoá logs</button>
+                </div>
+                <div id="terminalBody" class="terminal-body">
+                    <div class="log-line log-sys">Hệ thống sẵn sàng. Vui lòng tải một dự án để bắt đầu.</div>
+                </div>
+            </div>
+
+        </div>
+
+    </div>
+
+    <!-- Leaflet JS & Geoman JS -->
+    <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@geoman-io/leaflet-geoman-free@2.14.0/dist/leaflet-geoman.min.js"></script>
+
+    <script>
+        const btnOpenCalibration = document.getElementById('btnOpenCalibration');
+        const lblCalibStatus = document.getElementById('lblCalibStatus');
+        
+        let map = null;
+        let cropLayer = null;
+        let boundaryLayer = null;
+        let projectMetadata = null;
+        let isRunning = false;
+        let eventSource = null;
+
+        // UI Selectors
+        const btnLoadProject = document.getElementById('btnLoadProject');
+        const projectPathInput = document.getElementById('projectPath');
+        const projectInfo = document.getElementById('projectInfo');
+        const lblProjectName = document.getElementById('lblProjectName');
+        const lblResolution = document.getElementById('lblResolution');
+        const lblDimensions = document.getElementById('lblDimensions');
+        const pointcloudStep = document.getElementById('pointcloudStep');
+        const lblStepValue = document.getElementById('lblStepValue');
+        const wktInput = document.getElementById('wktInput');
+        const btnClearShape = document.getElementById('btnClearShape');
+        const btnBuild = document.getElementById('btnBuild');
+        const btnPreview = document.getElementById('btnPreview');
+        const btnCancel = document.getElementById('btnCancel');
+        const btnViewResult = document.getElementById('btnViewResult');
+        const statusDot = document.getElementById('statusDot');
+        const statusText = document.getElementById('statusText');
+        const mapPlaceholder = document.getElementById('mapPlaceholder');
+        const placeholderTitle = document.getElementById('placeholderTitle');
+        const placeholderText = document.getElementById('placeholderText');
+        const placeholderSpinner = document.getElementById('placeholderSpinner');
+        const terminalBody = document.getElementById('terminalBody');
+        const btnClearLogs = document.getElementById('btnClearLogs');
+        const mapInstructions = document.getElementById('mapInstructions');
+
+        // Handle Decimation Slider label update
+        pointcloudStep.addEventListener('input', (e) => {
+            const step = e.target.value;
+            if (step == 1) {
+                lblStepValue.textContent = '1 (Chất lượng cao nhất)';
+            } else {
+                const percent = Math.round(100 / step);
+                lblStepValue.textContent = `${step} (Lấy khoảng ${percent}% điểm)`;
+            }
+        });
+
+        // WKT Parser
+        function parseWKT(wkt) {
+            try {
+                const match = wkt.match(/POLYGON\s*\(\s*\(([^)]+)\)\s*\)/i);
+                if (!match) return null;
+                const coordsStr = match[1];
+                return coordsStr.split(',').map(part => {
+                    const [xStr, yStr] = part.trim().split(/\s+/);
+                    return { x: parseFloat(xStr), y: parseFloat(yStr) };
+                });
+            } catch (e) {
+                console.error("Lỗi phân tích WKT:", e);
+                return null;
+            }
+        }
+
+        // Clear drawn crop area
+        btnClearShape.addEventListener('click', () => {
+            if (cropLayer && map) {
+                map.removeLayer(cropLayer);
+                cropLayer = null;
+            }
+            wktInput.value = '';
+        });
+
+        // Clear terminal logs
+        btnClearLogs.addEventListener('click', () => {
+            terminalBody.innerHTML = '<div class="log-line log-sys">Logs cleared.</div>';
+        });
+
+        // Log appending helper
+        function appendLog(text, className = '') {
+            const line = document.createElement('div');
+            line.className = `log-line ${className}`;
+            line.textContent = text;
+            terminalBody.appendChild(line);
+            terminalBody.scrollTop = terminalBody.scrollHeight;
+        }
+
+        // Load project metadata
+        btnLoadProject.addEventListener('click', loadProject);
+        
+        async function loadProject() {
+            const path = projectPathInput.value.trim();
+            if (!path) {
+                alert("Vui lòng nhập đường dẫn thư mục dự án.");
+                return;
+            }
+
+            // Reset UI states
+            projectInfo.style.display = 'none';
+            mapInstructions.style.display = 'none';
+            btnBuild.disabled = true;
+            btnPreview.disabled = true;
+            btnViewResult.style.display = 'none';
+            
+            placeholderTitle.textContent = "Đang quét dự án...";
+            placeholderText.textContent = "Đang đọc thông tin tệp tin từ Copre...";
+            placeholderSpinner.style.display = 'block';
+            mapPlaceholder.style.display = 'flex';
+
+            if (map) {
+                map.remove();
+                map = null;
+                cropLayer = null;
+                boundaryLayer = null;
+            }
+
+            appendLog(`[SYS] Đang kết nối và tải thông tin dự án: ${path}...`, 'log-sys');
+
+            try {
+                const response = await fetch(`/api/load-project?path=${encodeURIComponent(path)}`);
+                const data = await response.json();
+
+                if (!data.success) {
+                    throw new Error(data.error || "Không thể tải dự án");
+                }
+
+                // Show details
+                lblProjectName.textContent = data.projectName;
+                btnPreview.disabled = false;
+
+                if (data.metadata) {
+                    projectMetadata = data.metadata;
+                    lblResolution.textContent = `${data.metadata.originalWidth} × ${data.metadata.originalHeight} px`;
+                    lblDimensions.textContent = `${data.metadata.sizeMeters.x.toFixed(1)}m × ${data.metadata.sizeMeters.y.toFixed(1)}m`;
+                    // Render calibration status info
+                    if (data.calibration) {
+                        lblCalibStatus.innerHTML = `
+                            Model: X=${data.calibration.modelX.toFixed(1)}, Y=${data.calibration.modelY.toFixed(1)}, RotY=${data.calibration.modelRotY.toFixed(3)}<br>
+                            DOM Off: X=${data.calibration.domOffX.toFixed(1)}, Y=${data.calibration.domOffY.toFixed(1)}, RotZ=${data.calibration.domRotZ.toFixed(3)}
+                        `;
+                    } else {
+                        lblCalibStatus.textContent = "Chưa có cấu hình cân chỉnh riêng (sử dụng mặc định)";
+                    }
+                    
+                    projectInfo.style.display = 'block';
+                    
+                    // Show map
+                    mapPlaceholder.style.display = 'none';
+                    mapInstructions.style.display = 'flex';
+                    btnBuild.disabled = false;
+                    
+                    // Init Leaflet map
+                    initMap(data.metadata, `/api/preview-image?path=${encodeURIComponent(path)}&source=${data.previewSource}`, data.boundaryWkt);
+                    appendLog(`[SYS] Dự án tải thành công. Kích thước ảnh DOM: ${data.metadata.webWidth}x${data.metadata.webHeight}px.`, 'log-success');
+                    
+                    if (data.resultExists) {
+                        btnViewResult.style.display = 'inline-flex';
+                        appendLog(`[SYS] Tìm thấy bản build đầy đủ trước đó. Bạn có thể bấm "Xem Kết Quả 3D" để trải nghiệm.`, 'log-success');
+                    }
+                } else {
+                    // Preview has not been generated yet
+                    placeholderTitle.textContent = "Chưa có Ảnh Xem Trước (Preview)";
+                    placeholderText.innerHTML = "Dự án mới cần tạo ảnh xem trước nhẹ trước khi vẽ vùng cắt.<br>Vui lòng bấm nút <b>Tạo Preview nhanh</b> phía dưới để chuẩn bị ảnh nền.";
+                    placeholderSpinner.style.display = 'none';
+                    appendLog(`[SYS] Dự án này chưa có ảnh DOM xem trước. Vui lòng chạy "Tạo Preview nhanh" trước.`, 'log-sys');
+                }
+            } catch (err) {
+                placeholderTitle.textContent = "Lỗi tải dự án";
+                placeholderText.textContent = err.message;
+                placeholderSpinner.style.display = 'none';
+                appendLog(`[ERR] ${err.message}`, 'log-err');
+            }
+        }
+
+        // Initialize Map
+        function initMap(meta, imageUrl, boundaryWkt) {
+            const width = meta.webWidth;
+            const height = meta.webHeight;
+            
+            // Simple CRS for non-geographical image overlay
+            map = L.map('map', {
+                crs: L.CRS.Simple,
+                minZoom: -3,
+                maxZoom: 3
+            });
+
+            const bounds = [[0, 0], [height, width]];
+            
+            // Overlay orthophoto image
+            L.imageOverlay(imageUrl, bounds).addTo(map);
+            map.fitBounds(bounds);
+
+            // Enable Geoman Toolbar for drawing crop region
+            map.pm.addControls({
+                position: 'topleft',
+                drawMarker: false,
+                drawCircleMarker: false,
+                drawPolyline: false,
+                drawRectangle: true,
+                drawPolygon: true,
+                drawCircle: false,
+                editMode: true,
+                dragMode: true,
+                removalMode: true,
+                cutPolygon: false
+            });
+
+            // Listen to draw creation
+            map.on('pm:create', function(e) {
+                if (cropLayer) {
+                    map.removeLayer(cropLayer);
+                }
+                cropLayer = e.layer;
+                updateWkt(cropLayer, meta);
+
+                // Re-calculate WKT when shape is edited/dragged/deleted
+                cropLayer.on('pm:edit', () => updateWkt(cropLayer, meta));
+                cropLayer.on('pm:dragend', () => updateWkt(cropLayer, meta));
+                cropLayer.on('pm:remove', () => {
+                    cropLayer = null;
+                    wktInput.value = '';
+                    appendLog('[SYS] Đã xoá vùng vẽ.', 'log-sys');
+                });
+            });
+
+            // Plot original boundary outline (Red dashed line)
+            if (boundaryWkt) {
+                const pts = parseWKT(boundaryWkt);
+                if (pts && pts.length >= 3) {
+                    const latlngs = pts.map(pt => {
+                        const x = ((pt.x - meta.extentSRS.xmin) / (meta.extentSRS.xmax - meta.extentSRS.xmin)) * width;
+                        const y = ((pt.y - meta.extentSRS.ymin) / (meta.extentSRS.ymax - meta.extentSRS.ymin)) * height;
+                        return [y, x];
+                    });
+                    
+                    boundaryLayer = L.polygon(latlngs, {
+                        color: '#ef4444',
+                        weight: 2,
+                        fill: false,
+                        dashArray: '8, 8',
+                        interactive: false
+                    }).addTo(map);
+                    
+                    appendLog('[SYS] Đã hiển thị đường ranh giới (Boundary) gốc màu đỏ trên bản đồ.', 'log-sys');
+                }
+            }
+        }
+
+        // Convert Leaflet geometry to SRS coordinates WKT
+        function updateWkt(layer, meta) {
+            const latlngs = layer.getLatLngs();
+            let ring = latlngs[0];
+            
+            // In Leaflet-Geoman, polygons contain nested array
+            if (Array.isArray(ring) && Array.isArray(ring[0])) {
+                ring = ring[0];
+            }
+            
+            const pts = ring.map(ll => {
+                const x = ll.lng;
+                const y = ll.lat;
+                // Interpolate from pixel boundaries to SRS coords
+                const X = meta.extentSRS.xmin + (x / meta.webWidth) * (meta.extentSRS.xmax - meta.extentSRS.xmin);
+                const Y = meta.extentSRS.ymin + (y / meta.webHeight) * (meta.extentSRS.ymax - meta.extentSRS.ymin);
+                return `${X.toFixed(3)} ${Y.toFixed(3)}`;
+            });
+
+            // Ensure closed ring in WKT
+            if (pts[0] !== pts[pts.length - 1]) {
+                pts.push(pts[0]);
+            }
+
+            const wkt = `POLYGON((${pts.join(', ')}))`;
+            wktInput.value = wkt;
+            appendLog(`[SYS] Đã vẽ vùng cắt WKT: ${wkt.substring(0, 60)}...`, 'log-sys');
+        }
+
+        // Listen for log stream
+        function startLogStream() {
+            if (eventSource) {
+                eventSource.close();
+            }
+            
+            eventSource = new EventSource('/api/stream-logs');
+            
+            eventSource.onmessage = function(event) {
+                if (event.data === '[DONE]') {
+                    eventSource.close();
+                    eventSource = null;
+                    stopRunningState();
+                    appendLog('[SYS] Dòng stream ghi log đã đóng.', 'log-sys');
+                    // Refresh project info after complete
+                    loadProject();
+                    return;
+                }
+                
+                try {
+                    const line = JSON.parse(event.data);
+                    
+                    // Style specific keywords
+                    if (line.includes('ERROR:') || line.includes('FAILED')) {
+                        appendLog(line, 'log-err');
+                    } else if (line.includes('OK:') || line.includes('complete') || line.includes('successful')) {
+                        appendLog(line, 'log-success');
+                    } else if (line.startsWith('[SYS]')) {
+                        appendLog(line, 'log-sys');
+                    } else {
+                        appendLog(line);
+                    }
+                } catch (e) {
+                    console.error("Log error parsing:", e);
+                }
+            };
+
+            eventSource.onerror = function(err) {
+                console.error("SSE stream error:", err);
+                eventSource.close();
+                eventSource = null;
+            };
+        }
+
+        function startRunningState(msg) {
+            isRunning = true;
+            statusDot.className = 'status-dot running';
+            statusText.textContent = `Trạng thái: ${msg}`;
+            btnBuild.disabled = true;
+            btnPreview.disabled = true;
+            btnLoadProject.disabled = true;
+            btnCancel.style.display = 'inline-flex';
+        }
+
+        function stopRunningState() {
+            isRunning = false;
+            statusDot.className = 'status-dot idle';
+            statusText.textContent = 'Trạng thái: Sẵn sàng';
+            btnLoadProject.disabled = false;
+            btnCancel.style.display = 'none';
+            
+            // Buttons will enable based on path check in loadProject
+            loadProject();
+        }
+
+        // Action: Generate Preview
+        btnPreview.addEventListener('click', async () => {
+            const path = projectPathInput.value.trim();
+            if (isRunning) return;
+
+            appendLog(`[SYS] Đang yêu cầu tạo Ảnh Xem Trước (Preview) nhanh cho: ${path}...`, 'log-sys');
+            startRunningState("Đang tạo preview...");
+
+            try {
+                const response = await fetch('/api/start-build', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        project_path: path,
+                        action: 'preview'
+                    })
+                });
+                const data = await response.json();
+                
+                if (!data.success) {
+                    throw new Error(data.error);
+                }
+                
+                startLogStream();
+            } catch (err) {
+                appendLog(`[ERR] Lỗi khởi động preview: ${err.message}`, 'log-err');
+                stopRunningState();
+            }
+        });
+
+        // Action: Build and Clip
+        btnBuild.addEventListener('click', async () => {
+            const path = projectPathInput.value.trim();
+            const wkt = wktInput.value.trim();
+            
+            if (isRunning) return;
+            if (!wkt) {
+                alert("Vui lòng vẽ vùng cắt đa giác trên bản đồ trước khi chạy Xử lý.");
+                return;
+            }
+
+            appendLog(`[SYS] Đang khởi chạy Xử lý Cắt & Build dự án với WKT: ${wkt.substring(0, 50)}...`, 'log-sys');
+            startRunningState("Đang xử lý cắt...");
+
+            try {
+                const response = await fetch('/api/start-build', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        project_path: path,
+                        action: 'build',
+                        clip_wkt: wkt,
+                        pointcloud_step: parseInt(pointcloudStep.value),
+                        skip_pointcloud: document.getElementById('chkSkipPointCloud').checked,
+                        skip_model: document.getElementById('chkSkipModel').checked,
+                        skip_dom: document.getElementById('chkSkipDOM').checked,
+                        compress_model: document.getElementById('chkCompressModel').checked,
+                        simplify_ratio: document.getElementById('selectSimplifyRatio').value
+                    })
+                });
+                const data = await response.json();
+
+                if (!data.success) {
+                    throw new Error(data.error);
+                }
+
+                startLogStream();
+            } catch (err) {
+                appendLog(`[ERR] Lỗi khởi động xử lý build: ${err.message}`, 'log-err');
+                stopRunningState();
+            }
+        });
+
+        // Open Calibration click handler
+        btnOpenCalibration.addEventListener('click', () => {
+            const path = projectPathInput.value.trim();
+            if (!path) return;
+            window.open(`/results/index.html?path=${encodeURIComponent(path)}&admin=1`, '_blank');
+        });
+
+        // Action: Cancel
+        btnCancel.addEventListener('click', async () => {
+            if (!confirm("Bạn có chắc chắn muốn huỷ tiến trình đang chạy?")) return;
+            
+            appendLog('[SYS] Đang gửi yêu cầu dừng tiến trình...', 'log-sys');
+            try {
+                const response = await fetch('/api/cancel-build', { method: 'POST' });
+                const data = await response.json();
+                if (!data.success) {
+                    alert(data.error);
+                }
+            } catch (err) {
+                appendLog(`[ERR] Lỗi khi huỷ tiến trình: ${err.message}`, 'log-err');
+            }
+        });
+
+        // Action: View Result 3D
+        btnViewResult.addEventListener('click', () => {
+            const path = projectPathInput.value.trim();
+            if (!path) return;
+            window.open(`/results/index.html?path=${encodeURIComponent(path)}`, '_blank');
+        });
+    </script>
+</body>
+</html>

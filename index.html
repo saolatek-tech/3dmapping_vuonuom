@@ -948,32 +948,67 @@
     <!-- Admin calibration panel — hidden by default, toggled by F1 -->
     <div id="adminPanel" style="
         display:none; position:fixed; top:60px; left:50%; transform:translateX(-50%);
-        background:rgba(10,20,35,0.93); border:2px solid rgba(255,200,0,0.6);
-        border-radius:12px; padding:12px 20px; z-index:9999; color:#ffd700;
-        font:13px/1.6 'Inter',monospace; box-shadow:0 4px 24px rgba(0,0,0,0.6);
-        min-width:340px; text-align:center; pointer-events:none; transition:border-color 0.3s;">
-        <div style="font-size:15px;font-weight:700;margin-bottom:6px;letter-spacing:1px;">
-            🔧 CHẾ ĐỘ ADMIN &nbsp;<span style="font-size:11px;opacity:0.7;">(F1 để thoát)</span>
+        background:rgba(10,20,35,0.95); border:2px solid rgba(255,200,0,0.6);
+        border-radius:16px; padding:16px 24px; z-index:9999; color:#ffd700;
+        font-family:'Inter', sans-serif; box-shadow:0 8px 32px rgba(0,0,0,0.7);
+        min-width:480px; text-align:left; pointer-events:auto; transition:border-color 0.3s;
+        backdrop-filter: blur(10px);">
+        <div style="font-size:16px;font-weight:700;margin-bottom:12px;letter-spacing:0.5px;text-align:center;display:flex;justify-content:space-between;align-items:center;">
+            <span>🔧 CHẾ ĐỘ CÂN CHỈNH TOẠ ĐỘ</span>
+            <span style="font-size:11px;opacity:0.7;color:#94a3b8;font-weight:400;">Bấm F1 để đóng</span>
         </div>
-        <table style="width:100%;border-collapse:collapse;font-size:12px;text-align:left;">
-            <tr>
-                <td style="color:#aef;padding:2px 8px;"><b>↑↓←→ / I J K L</b></td>
-                <td style="color:#ddd;">Di chuyển Model 3D</td>
-            </tr>
-            <tr>
-                <td style="color:#aef;padding:2px 8px;"><b>U / O</b></td>
-                <td style="color:#ddd;">Xoay Model (+/-)</td>
-            </tr>
-            <tr>
-                <td style="color:#afd;padding:2px 8px;"><b>W A S D</b></td>
-                <td style="color:#ddd;">Di chuyển Ảnh DOM</td>
-            </tr>
-            <tr>
-                <td style="color:#afd;padding:2px 8px;"><b>Q / E</b></td>
-                <td style="color:#ddd;">Xoay Ảnh DOM (+/-)</td>
-            </tr>
-        </table>
-        <div style="margin-top:8px;font-size:11px;color:#aaa;">💾 Tự động lưu sau 0.8s &bull; Viền xanh = đã lưu ✓</div>
+        
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 14px;">
+            <!-- Model settings -->
+            <div style="background:rgba(255,255,255,0.03); border:1px solid rgba(14,165,233,0.15); border-radius:8px; padding:10px;">
+                <div style="font-weight:600;font-size:12px;color:#0ea5e9;margin-bottom:8px;text-transform:uppercase;">Mô hình 3D (Mesh)</div>
+                <div style="display:flex; flex-direction:column; gap:6px; font-size:11px; color:#ddd;">
+                    <label style="display:flex;justify-content:space-between;align-items:center;">
+                        X (Easting): 
+                        <input type="number" id="inpModelX" step="0.1" style="width:110px;background:#05070c;border:1px solid #334155;border-radius:4px;color:#fff;padding:2px 6px;outline:none;">
+                    </label>
+                    <label style="display:flex;justify-content:space-between;align-items:center;">
+                        Y (Northing): 
+                        <input type="number" id="inpModelY" step="0.1" style="width:110px;background:#05070c;border:1px solid #334155;border-radius:4px;color:#fff;padding:2px 6px;outline:none;">
+                    </label>
+                    <label style="display:flex;justify-content:space-between;align-items:center;">
+                        Góc xoay (Rad): 
+                        <input type="number" id="inpModelRotY" step="0.001" style="width:110px;background:#05070c;border:1px solid #334155;border-radius:4px;color:#fff;padding:2px 6px;outline:none;">
+                    </label>
+                </div>
+            </div>
+
+            <!-- DOM settings -->
+            <div style="background:rgba(255,255,255,0.03); border:1px solid rgba(16,185,129,0.15); border-radius:8px; padding:10px;">
+                <div style="font-weight:600;font-size:12px;color:#10b981;margin-bottom:8px;text-transform:uppercase;">Ảnh trực giao (DOM)</div>
+                <div style="display:flex; flex-direction:column; gap:6px; font-size:11px; color:#ddd;">
+                    <label style="display:flex;justify-content:space-between;align-items:center;">
+                        Dịch X (m): 
+                        <input type="number" id="inpDomOffX" step="0.1" style="width:110px;background:#05070c;border:1px solid #334155;border-radius:4px;color:#fff;padding:2px 6px;outline:none;">
+                    </label>
+                    <label style="display:flex;justify-content:space-between;align-items:center;">
+                        Dịch Y (m): 
+                        <input type="number" id="inpDomOffY" step="0.1" style="width:110px;background:#05070c;border:1px solid #334155;border-radius:4px;color:#fff;padding:2px 6px;outline:none;">
+                    </label>
+                    <label style="display:flex;justify-content:space-between;align-items:center;">
+                        Góc xoay (Rad): 
+                        <input type="number" id="inpDomRotZ" step="0.001" style="width:110px;background:#05070c;border:1px solid #334155;border-radius:4px;color:#fff;padding:2px 6px;outline:none;">
+                    </label>
+                </div>
+            </div>
+        </div>
+
+        <div style="display:flex; justify-content:space-between; align-items:center; gap:10px;">
+            <div style="font-size:10px; color:#94a3b8; line-height:1.3; max-width:240px;">
+                💡 Phím tắt:<br>
+                Model: <b>↑↓←→ / I J K L</b> (Dịch), <b>U / O</b> (Xoay)<br>
+                DOM: <b>W A S D</b> (Dịch), <b>Q / E</b> (Xoay)
+            </div>
+            <div style="display:flex; gap:8px;">
+                <button onclick="resetCalibrationToDefault()" style="background:rgba(255,255,255,0.08); border:1px solid #475569; color:#fff; padding:6px 12px; border-radius:6px; cursor:pointer; font-size:11px; font-weight:600;">MẶC ĐỊNH</button>
+                <button id="btnSaveCalibServer" onclick="saveCalibrationToServer()" style="background:linear-gradient(135deg,#0284c7,#0ea5e9); border:none; color:#fff; padding:6px 14px; border-radius:6px; cursor:pointer; font-size:11px; font-weight:600; box-shadow: 0 4px 10px rgba(14,165,233,0.35);">💾 LƯU LÊN SERVER</button>
+            </div>
+        </div>
     </div>
 
     <!-- Cửa sổ Google Maps tương tác thực tế -->
@@ -1039,12 +1074,131 @@
                 } catch (e) { return defaults; }
             })();
 
+            // Global original coordinates for DOM
+            let domOrigCx = 615901.041 + 143.532 / 2;
+            let domOrigCy = 1199119.884 - 142.222 / 2;
+
+            // Load calibration.json from Flask server if running locally
+            async function loadCalibrationFromServer() {
+                try {
+                    const response = await fetch('calibration.json');
+                    if (response.ok) {
+                        const data = await response.json();
+                        Object.assign(CAL, data);
+                        console.log('[Calibration] Loaded parameters from server:', CAL);
+                    }
+                } catch (e) {
+                    console.log('[Calibration] Server parameters not found, using localStorage/defaults.');
+                }
+            }
+
+            // Sync input controls with CAL object values
+            function updateInputsFromCAL() {
+                const fields = {
+                    'inpModelX': CAL.modelX,
+                    'inpModelY': CAL.modelY,
+                    'inpModelRotY': CAL.modelRotY,
+                    'inpDomOffX': CAL.domOffX,
+                    'inpDomOffY': CAL.domOffY,
+                    'inpDomRotZ': CAL.domRotZ
+                };
+                for (let id in fields) {
+                    const el = document.getElementById(id);
+                    if (el) el.value = fields[id].toFixed(id.includes('Rot') ? 4 : 2);
+                }
+            }
+
+            // Apply values from inputs to CAL and ThreeJS
+            function updateThreeJSFromInputs() {
+                CAL.modelX = parseFloat(document.getElementById('inpModelX').value) || 0;
+                CAL.modelY = parseFloat(document.getElementById('inpModelY').value) || 0;
+                CAL.modelRotY = parseFloat(document.getElementById('inpModelRotY').value) || 0;
+                CAL.domOffX = parseFloat(document.getElementById('inpDomOffX').value) || 0;
+                CAL.domOffY = parseFloat(document.getElementById('inpDomOffY').value) || 0;
+                CAL.domRotZ = parseFloat(document.getElementById('inpDomRotZ').value) || 0;
+                
+                applyCalibration();
+                scheduleAutoSave();
+            }
+
+            function applyCalibration() {
+                if (modelGroup) {
+                    modelGroup.position.set(CAL.modelX, CAL.modelY, 0.3);
+                    modelGroup.rotation.y = CAL.modelRotY;
+                }
+                if (domPlane) {
+                    domPlane.position.set(domOrigCx + CAL.domOffX, domOrigCy + CAL.domOffY, 0.01);
+                    domPlane.rotation.z = CAL.domRotZ;
+                }
+            }
+
+            window.saveCalibrationToServer = async function () {
+                const urlParams = new URLSearchParams(window.location.search);
+                const projectPath = urlParams.get('path');
+                if (!projectPath) {
+                    alert("Không tìm thấy đường dẫn dự án trong URL");
+                    return;
+                }
+                
+                const btn = document.getElementById('btnSaveCalibServer');
+                if (btn) {
+                    btn.disabled = true;
+                    btn.textContent = "ĐANG LƯU...";
+                }
+                
+                try {
+                    const response = await fetch('/api/save-calibration', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            project_path: projectPath,
+                            calibration: CAL
+                        })
+                    });
+                    const res = await response.json();
+                    if (res.success) {
+                        var panel = document.getElementById('adminPanel');
+                        if (panel) {
+                            panel.style.borderColor = '#10b981';
+                            setTimeout(function () { panel.style.borderColor = 'rgba(255,200,0,0.6)'; }, 1000);
+                        }
+                        alert("✓ Đã lưu cấu hình cân chỉnh lên server dự án thành công!");
+                    } else {
+                        alert("Lỗi lưu cấu hình: " + res.error);
+                    }
+                } catch (err) {
+                    alert("Lỗi kết nối máy chủ: " + err.message);
+                } finally {
+                    if (btn) {
+                        btn.disabled = false;
+                        btn.textContent = "💾 LƯU LÊN SERVER";
+                    }
+                }
+            };
+
+            window.resetCalibrationToDefault = function () {
+                if (!confirm("Bạn có chắc chắn muốn khôi phục cân chỉnh về mặc định?")) return;
+                const defaults = {
+                    modelX: 615996.5,
+                    modelY: 1199042.0,
+                    modelRotY: -0.05,
+                    domOffX: 16.0,
+                    domOffY: 14.5,
+                    domRotZ: 0.0
+                };
+                Object.assign(CAL, defaults);
+                applyCalibration();
+                updateInputsFromCAL();
+                localStorage.setItem(LS_KEY, JSON.stringify(CAL));
+            };
+
+
             const loadingEl = document.getElementById('loading');
             const loadingText = document.getElementById('loadingText');
             const barFill = document.getElementById('barFill');
 
-            const assetProgress = { dom: 0, model: 0 };
-            const ASSET_WEIGHTS = { dom: 50, model: 50 };
+            const assetProgress = { dom: 0, model: 0, pointcloud: 0 };
+            const ASSET_WEIGHTS = { dom: 33, model: 33, pointcloud: 34 };
 
             function updateProgress(key, pct) {
                 if (ASSET_WEIGHTS[key] === undefined) return;
@@ -1057,7 +1211,7 @@
 
             function checkAllLoaded() {
                 if (allLoaded) return;
-                const done = assetProgress.dom >= 100 && assetProgress.model >= 100;
+                const done = assetProgress.dom >= 100 && assetProgress.model >= 100 && assetProgress.pointcloud >= 100;
                 if (done) {
                     allLoaded = true;
                     loadingText.textContent = 'Hoàn tất!';
@@ -1219,6 +1373,9 @@
             async function init() {
                 loadingText.textContent = 'Đang khởi tạo...';
 
+                // Load custom calibration overrides from server before parsing
+                await loadCalibrationFromServer();
+
                 var renderArea = document.getElementById('potree_render_area');
                 viewer = new Potree.Viewer(renderArea);
 
@@ -1369,6 +1526,13 @@
                 loadGoogleMapsTiles();
                 loadDOM();
                 loadModel();
+                loadPointCloud();
+
+                // Auto-enable admin mode if URL parameter ?admin=1 or hash #admin is present
+                const urlParams = new URLSearchParams(window.location.search);
+                if (urlParams.has('admin') || window.location.hash === '#admin') {
+                    setTimeout(toggleAdminMode, 1500);
+                }
             }
 
             // ============================================================
@@ -1384,8 +1548,10 @@
                         var tlX = meta.extentSRS.xmin;
                         var tlY = meta.extentSRS.ymax;
                         // DOM plane center from extent + saved offset
-                        var cx = tlX + domW / 2 + CAL.domOffX;
-                        var cy = tlY - domH / 2 + CAL.domOffY;
+                        domOrigCx = tlX + domW / 2;
+                        domOrigCy = tlY - domH / 2;
+                        var cx = domOrigCx + CAL.domOffX;
+                        var cy = domOrigCy + CAL.domOffY;
 
                         new THREE.TextureLoader().load('./dom/dom.jpg',
                             function (texture) {
@@ -1537,7 +1703,7 @@
 
                 var loader = new THREE.GLTFLoader();
                 loader.setMeshoptDecoder(MeshoptDecoder);
-                loader.load('./glb/model_49m_resized_opt.glb',
+                loader.load('./glb/model.glb',
                     function (gltf) {
                         modelGroup = gltf.scene;
 
@@ -1612,6 +1778,43 @@
             }
 
             // ============================================================
+            // LOAD POINT CLOUD (COPC)
+            // ============================================================
+            function loadPointCloud() {
+                updateProgress('pointcloud', 5);
+                loadingText.textContent = 'Đang tải đám mây điểm...';
+
+                Potree.loadPointCloud('./pointcloud/cloud.copc.laz', 'cloud', function (e) {
+                    let pointcloud = e.pointcloud;
+                    let material = pointcloud.material;
+
+                    material.size = 1.0;
+                    material.minSize = 2.0;
+                    material.pointSizeType = Potree.PointSizeType.ADAPTIVE;
+                    material.shape = Potree.PointShape.SQUARE;
+                    material.activeAttributeName = "color";
+
+                    // Position point cloud at 0,0,0 (already georeferenced)
+                    pointcloud.position.set(0, 0, 0);
+
+                    viewer.scene.addPointCloud(pointcloud);
+                    
+                    // Show layer based on current state
+                    pointcloud.visible = (currentLayer === 'both' || currentLayer === 'pointcloud');
+
+                    assetProgress.pointcloud = 100;
+                    updateProgress('pointcloud', 100);
+                    checkAllLoaded();
+                    console.log('[PointCloud] Ready');
+                }, function (err) {
+                    console.warn('[PointCloud] Load failed or skipped:', err);
+                    assetProgress.pointcloud = 100;
+                    updateProgress('pointcloud', 100);
+                    checkAllLoaded();
+                });
+            }
+
+            // ============================================================
             // LAYER SWITCHING
             // ============================================================
             window.switchLayer = function (layer) {
@@ -1623,7 +1826,14 @@
 
                 // Show selected layers
                 if (modelGroup) modelGroup.visible = (layer === 'model' || layer === 'both');
-                if (domPlane) domPlane.visible = (layer === 'dom');
+                if (domPlane) domPlane.visible = (layer === 'dom' || layer === 'both');
+
+                // Toggle point clouds
+                if (viewer && viewer.scene && viewer.scene.pointclouds) {
+                    viewer.scene.pointclouds.forEach(function (pc) {
+                        pc.visible = (layer === 'both' || layer === 'pointcloud');
+                    });
+                }
 
                 // Hide Google Maps tiles in the 3D view when showing only model or only DOM plane
                 if (viewer && viewer.scene && viewer.scene.scene) {
@@ -1717,8 +1927,12 @@
                 adminMode = !adminMode;
                 var panel = document.getElementById('adminPanel');
                 if (panel) panel.style.display = adminMode ? 'block' : 'none';
-                if (adminMode) console.log('[Admin] Calibration mode ON — WASD/QE=DOM  ↑↓←→/UO=Model  F1=Exit');
-                else console.log('[Admin] Calibration mode OFF');
+                if (adminMode) {
+                    updateInputsFromCAL();
+                    console.log('[Admin] Calibration mode ON');
+                } else {
+                    console.log('[Admin] Calibration mode OFF');
+                }
             }
 
             window.addEventListener('keydown', function (e) {
@@ -1759,15 +1973,23 @@
                     else if (e.key.toLowerCase() === 'e') domPlane.rotation.z -= rotStep;
                 }
 
-                // Log live values and queue auto-save
+                // Log live values, update inputs, and queue auto-save
                 if (modelGroup && domPlane) {
                     console.log(
                         'Model:', modelGroup.position.x.toFixed(2), modelGroup.position.y.toFixed(2), 'rotY:', modelGroup.rotation.y.toFixed(4),
                         '| DOM rotZ:', domPlane.rotation.z.toFixed(4)
                     );
+                    updateInputsFromCAL();
                     scheduleAutoSave();
                 }
             });
+
+            // Initialize input element bindings
+            setTimeout(function() {
+                document.querySelectorAll('#adminPanel input').forEach(input => {
+                    input.addEventListener('input', updateThreeJSFromInputs);
+                });
+            }, 1000);
 
             // ============================================================
             // INTERACTIVE MAP CONTROLLER
