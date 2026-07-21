@@ -1144,6 +1144,13 @@
             // ============================================================
             // MOBILE MEASUREMENT PATCH - Direct Potree-Native Tap Handler
             // ============================================================
+            // _activeMeasureSphere: tracks the sphere currently being placed.
+            // We cannot patch onTouchStart because Potree's InputHandler already
+            // registered a bound DOM listener in its constructor — changing the
+            // method property has no effect on that listener. Instead we override
+            // startDragging (a plain method call) to capture sphere references.
+            var _activeMeasureSphere = null;
+
             function installMobileMeasurementPatch(viewer) {
                 var canvas = viewer.renderer.domElement;
                 var inputHandler = viewer.inputHandler;
@@ -1152,7 +1159,28 @@
                 var hasMoved = false;
                 var MOVE_THRESHOLD = 12;
 
-                canvas.addEventListener("touchstart", function (e) {
+                // --- Override startDragging to track active measurement sphere ---
+                // Called directly (not via DOM listener), so property override works.
+                var _origStartDragging = inputHandler.startDragging.bind(inputHandler);
+                inputHandler.startDragging = function(object, args) {
+                    if (object && object.geometry && object.geometry.type &&
+                        object.geometry.type.includes('Sphere')) {
+                        _activeMeasureSphere = object; // new sphere to place
+                        console.log('[MobilePatch] Active sphere set:', object.uuid ? object.uuid.slice(0,8) : '?');
+                    } else if (!object) {
+                        // startDragging(null) = pan mode from touchstart — do NOT clear
+                        // _activeMeasureSphere; our touchend handler still needs it.
+                    }
+                    return _origStartDragging.call(this, object, args);
+                }.bind(inputHandler);
+
+                // Clear sphere when measurement is finished or cancelled
+                viewer.addEventListener('cancel_insertions', function() {
+                    _activeMeasureSphere = null;
+                    console.log('[MobilePatch] Measurement cancelled — sphere cleared');
+                });
+
+                canvas.addEventListener('touchstart', function (e) {
                     if (e.touches.length === 1) {
                         touchStartPos.x = e.touches[0].clientX;
                         touchStartPos.y = e.touches[0].clientY;
@@ -1161,7 +1189,7 @@
                     }
                 }, { passive: true });
 
-                canvas.addEventListener("touchmove", function (e) {
+                canvas.addEventListener('touchmove', function (e) {
                     if (e.touches.length === 1) {
                         var dx = e.touches[0].clientX - touchStartPos.x;
                         var dy = e.touches[0].clientY - touchStartPos.y;
@@ -1169,7 +1197,7 @@
                     }
                 }, { passive: true });
 
-                canvas.addEventListener("touchend", function (e) {
+                canvas.addEventListener('touchend', function (e) {
                     var duration = Date.now() - touchStartTime;
                     if (hasMoved || duration >= 400) return;
 
@@ -1181,44 +1209,52 @@
 
                     if (inputHandler) inputHandler.mouse.set(canvasX, canvasY);
 
-                    // PATH A: measurement sphere is active drag target
-                    var ih = inputHandler;
-                    var dragObj = ih && ih.drag && ih.drag.object;
-                    var isSphere = dragObj && dragObj.geometry &&
-                        dragObj.geometry.type && dragObj.geometry.type.includes("Sphere");
+                    // ── PATH A: a measurement sphere is waiting to be placed ─────────────
+                    if (_activeMeasureSphere) {
+                        var sphere = _activeMeasureSphere;
 
-                    if (isSphere) {
-                        var I = Potree.Utils.getMousePointCloudIntersection(
-                            { x: canvasX, y: canvasY },
-                            viewer.scene.getActiveCamera(),
-                            viewer,
-                            viewer.scene.pointclouds,
-                            { pickClipped: false }
-                        );
-                        if (I && I.location) {
-                            dragObj.position.copy(I.location);
-                            dragObj.updateMatrixWorld(true);
-                            ih.drag.end = new THREE.Vector2(canvasX, canvasY);
-                            for (var li of ih.getSortedListeners()) {
-                                li.dispatchEvent({ type: "drop", drag: ih.drag, viewer: viewer });
-                            }
-                            console.log("[MobilePatch] Placed marker at", I.location.x.toFixed(2), I.location.y.toFixed(2), I.location.z.toFixed(2));
-                        } else {
-                            console.warn("[MobilePatch] No surface hit at tap position");
-                        }
-                        ih.drag = null;
-                        canvas.dispatchEvent(new MouseEvent("mouseup", { clientX: clientX, clientY: clientY, button: 0, buttons: 0, bubbles: true, cancelable: true }));
+                        // Fake a drag event on the sphere with the tap position.
+                        // Potree's sphere drag listener calls setPosition(i, intersection)
+                        // which correctly updates both sphere.position AND measure.points[i].
+                        var fakeDrag = {
+                            object: sphere,
+                            start: new THREE.Vector2(canvasX, canvasY),
+                            end:   new THREE.Vector2(canvasX, canvasY),
+                            lastDrag: new THREE.Vector2(0, 0),
+                            startView: viewer.scene.view.clone(),
+                            mouse: 1
+                        };
+                        sphere.dispatchEvent({ type: 'drag', drag: fakeDrag, viewer: viewer });
+
+                        console.log('[MobilePatch] Sphere drag dispatched at canvas', Math.round(canvasX), Math.round(canvasY));
+
+                        // Now fire mouseup so insertionCallback adds the next marker and
+                        // calls startDragging(newSphere) — which updates _activeMeasureSphere
+                        inputHandler.drag = null; // clear pan-drag so mouseup logic is clean
+                        canvas.dispatchEvent(new MouseEvent('mouseup', {
+                            clientX: clientX, clientY: clientY,
+                            button: 0, buttons: 0, bubbles: true, cancelable: true
+                        }));
                         return;
                     }
 
-                    // PATH B: general tap -> simulate click
-                    canvas.dispatchEvent(new MouseEvent("mousedown", { clientX: clientX, clientY: clientY, button: 0, buttons: 1, bubbles: true, cancelable: true }));
-                    canvas.dispatchEvent(new MouseEvent("mouseup", { clientX: clientX, clientY: clientY, button: 0, buttons: 0, bubbles: true, cancelable: true }));
-                    canvas.dispatchEvent(new MouseEvent("click", { clientX: clientX, clientY: clientY, button: 0, bubbles: true, cancelable: true }));
-                    console.log("[MobilePatch] General tap at", Math.round(canvasX), Math.round(canvasY));
+                    // ── PATH B: no active measurement — simulate normal click ────────────
+                    canvas.dispatchEvent(new MouseEvent('mousedown', {
+                        clientX: clientX, clientY: clientY,
+                        button: 0, buttons: 1, bubbles: true, cancelable: true
+                    }));
+                    canvas.dispatchEvent(new MouseEvent('mouseup', {
+                        clientX: clientX, clientY: clientY,
+                        button: 0, buttons: 0, bubbles: true, cancelable: true
+                    }));
+                    canvas.dispatchEvent(new MouseEvent('click', {
+                        clientX: clientX, clientY: clientY,
+                        button: 0, bubbles: true, cancelable: true
+                    }));
+                    console.log('[MobilePatch] General tap at', Math.round(canvasX), Math.round(canvasY));
                 }, { passive: true });
 
-                console.log("[MobilePatch] Direct Potree-native tap handler installed");
+                console.log('[MobilePatch] startDragging-based tap handler installed');
             }
 
             // ============================================================
@@ -1259,21 +1295,7 @@
                 // Mesh picking patch
                 installMeshPickingPatch();
 
-                // Patch onTouchStart to preserve sphere drag during measurement.
-                // Potree calls startDragging(null) on every touchstart, wiping out
-                // the sphere set by startInsertion(). This wrapper saves & restores it.
-                var _origOnTouchStart = viewer.inputHandler.onTouchStart.bind(viewer.inputHandler);
-                viewer.inputHandler.onTouchStart = function(e) {
-                    var savedDrag = (this.drag && this.drag.object) ? this.drag : null;
-                    _origOnTouchStart(e);
-                    if (savedDrag && savedDrag.object && savedDrag.object.geometry &&
-                        savedDrag.object.geometry.type &&
-                        savedDrag.object.geometry.type.includes("Sphere")) {
-                        this.drag = savedDrag;
-                    }
-                }.bind(viewer.inputHandler);
-
-                // Mobile measurement patch
+                // Install mobile measurement patch (startDragging override is inside)
                 installMobileMeasurementPatch(viewer);
 
                 // Patch fitToScreen to support 3D Model & DOM Plane when point clouds are empty
@@ -1341,7 +1363,7 @@
                 setInterval(function () {
                     if (!viewer || !viewer.scene) return;
 
-                    var clipBoxes = viewer.scene.clipBoxes;
+                    var clipBoxes = viewer.scene.clipBoxes || [];
                     var clipTask = viewer.clipTask; // 2 is SHOW_INSIDE
                     var clipActive = clipBoxes.length > 0 && (clipTask === 2 || clipTask === "SHOW_INSIDE");
 
