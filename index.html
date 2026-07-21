@@ -1484,7 +1484,7 @@
                 setInterval(function () {
                     if (!viewer || !viewer.scene) return;
 
-                    var clipBoxes = viewer.scene.clipBoxes;
+                    var clipBoxes = viewer.scene.clipBoxes || [];
                     var clipTask = viewer.clipTask; // 2 is SHOW_INSIDE
                     var clipActive = clipBoxes.length > 0 && (clipTask === 2 || clipTask === "SHOW_INSIDE");
 
@@ -1703,7 +1703,7 @@
 
                 var loader = new THREE.GLTFLoader();
                 loader.setMeshoptDecoder(MeshoptDecoder);
-                loader.load('./glb/model.glb',
+                loader.load('./glb/model_49m_resized_opt.glb',
                     function (gltf) {
                         modelGroup = gltf.scene;
 
@@ -1784,34 +1784,47 @@
                 updateProgress('pointcloud', 5);
                 loadingText.textContent = 'Đang tải đám mây điểm...';
 
-                Potree.loadPointCloud('./pointcloud/cloud.copc.laz', 'cloud', function (e) {
-                    let pointcloud = e.pointcloud;
-                    let material = pointcloud.material;
+                // Check if file exists and is accessible first to prevent uncaught parser exceptions on 404
+                fetch('./pointcloud/cloud.copc.laz', { method: 'HEAD' })
+                    .then(function (res) {
+                        if (!res.ok) {
+                            throw new Error('Point cloud file not found or inaccessible');
+                        }
+                        Potree.loadPointCloud('./pointcloud/cloud.copc.laz', 'cloud', function (e) {
+                            let pointcloud = e.pointcloud;
+                            let material = pointcloud.material;
 
-                    material.size = 1.0;
-                    material.minSize = 2.0;
-                    material.pointSizeType = Potree.PointSizeType.ADAPTIVE;
-                    material.shape = Potree.PointShape.SQUARE;
-                    material.activeAttributeName = "color";
+                            material.size = 1.0;
+                            material.minSize = 2.0;
+                            material.pointSizeType = Potree.PointSizeType.ADAPTIVE;
+                            material.shape = Potree.PointShape.SQUARE;
+                            material.activeAttributeName = "color";
 
-                    // Position point cloud at 0,0,0 (already georeferenced)
-                    pointcloud.position.set(0, 0, 0);
+                            // Position point cloud at 0,0,0 (already georeferenced)
+                            pointcloud.position.set(0, 0, 0);
 
-                    viewer.scene.addPointCloud(pointcloud);
-                    
-                    // Show layer based on current state
-                    pointcloud.visible = (currentLayer === 'both' || currentLayer === 'pointcloud');
+                            viewer.scene.addPointCloud(pointcloud);
+                            
+                            // Show layer based on current state
+                            pointcloud.visible = (currentLayer === 'both' || currentLayer === 'pointcloud');
 
-                    assetProgress.pointcloud = 100;
-                    updateProgress('pointcloud', 100);
-                    checkAllLoaded();
-                    console.log('[PointCloud] Ready');
-                }, function (err) {
-                    console.warn('[PointCloud] Load failed or skipped:', err);
-                    assetProgress.pointcloud = 100;
-                    updateProgress('pointcloud', 100);
-                    checkAllLoaded();
-                });
+                            assetProgress.pointcloud = 100;
+                            updateProgress('pointcloud', 100);
+                            checkAllLoaded();
+                            console.log('[PointCloud] Ready');
+                        }, function (err) {
+                            console.warn('[PointCloud] Load failed:', err);
+                            assetProgress.pointcloud = 100;
+                            updateProgress('pointcloud', 100);
+                            checkAllLoaded();
+                        });
+                    })
+                    .catch(function (err) {
+                        console.warn('[PointCloud] Skipped:', err.message);
+                        assetProgress.pointcloud = 100;
+                        updateProgress('pointcloud', 100);
+                        checkAllLoaded();
+                    });
             }
 
             // ============================================================
